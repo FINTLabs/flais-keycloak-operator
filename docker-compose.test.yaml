@@ -1,0 +1,17 @@
+services:
+  # ----------------------
+  # Core services
+  # ----------------------
+  keycloak:
+    user: "0"
+    ports:
+      - "8080"
+      - "9000"
+    volumes:
+      - ./config/kc:/opt/keycloak/data/import:ro
+
+  keycloak-pg:
+    ports:
+      - "5432"
+    tmpfs:
+      - /var/lib/postgresql/data

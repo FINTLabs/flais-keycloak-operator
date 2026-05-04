@@ -1,0 +1,7 @@
+{
+    "realm": "fint",
+    "enabled": true,
+    "registrationAllowed": false,
+    "loginWithEmailAllowed": false,
+    "organizationsEnabled": true
+}

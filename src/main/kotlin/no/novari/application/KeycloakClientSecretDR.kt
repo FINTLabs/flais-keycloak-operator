@@ -1,0 +1,42 @@
+package no.novari.application
+
+import io.fabric8.kubernetes.api.model.ObjectMeta
+import io.fabric8.kubernetes.api.model.Secret
+import io.fabric8.kubernetes.api.model.SecretBuilder
+import io.javaoperatorsdk.operator.api.config.informer.Informer
+import io.javaoperatorsdk.operator.api.reconciler.Context
+import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource
+import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent
+import no.novari.application.api.v1alpha1.Application
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+
+@KubernetesDependent(
+    informer = Informer(labelSelector = MANAGED_BY_APPLICATION_SELECTOR),
+)
+class KeycloakClientSecretDR :
+    CRUDKubernetesDependentResource<Secret, Application>(Secret::class.java),
+    KoinComponent {
+    private val keycloakClientService: KeycloakClientService by inject()
+
+    override fun name(): String = "keycloak-client-secret"
+
+    override fun desired(
+        primary: Application,
+        context: Context<Application>,
+    ): Secret {
+        val secretValue = keycloakClientService.clientSecret(primary)
+
+        return SecretBuilder()
+            .withMetadata(
+                ObjectMeta().apply {
+                    name = wonderwallSecretName(primary)
+                    namespace = primary.metadata.namespace
+                    labels = MANAGED_BY_APPLICATION_LABEL
+                    ownerReferences = ownerReferences(primary)
+                },
+            ).withType("Opaque")
+            .addToStringData(KEYCLOAK_CLIENT_SECRET_KEY, secretValue)
+            .build()
+    }
+}

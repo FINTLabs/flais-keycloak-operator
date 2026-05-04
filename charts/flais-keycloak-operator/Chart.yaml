@@ -1,0 +1,8 @@
+apiVersion: v2
+name: flais-keycloak-operator
+description: A Helm chart for Kubernetes
+sources:
+  - https://github.com/fintlabs/flais-keycloak-operator/tree/main/charts/flais-keycloak-operator
+type: application
+version: 0.0.0
+appVersion: invalid

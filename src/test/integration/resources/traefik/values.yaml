@@ -1,0 +1,22 @@
+# Minimal Traefik setup for integration tests.
+# Keeps only what is needed to run Traefik and route IngressRoute traffic.
+deployment:
+  replicas: 1
+
+service:
+  type: ClusterIP
+
+ports:
+  web:
+    forwardedHeaders:
+      insecure: true
+
+providers:
+  kubernetesCRD:
+    enabled: true
+  kubernetesIngress:
+    enabled: false
+
+logs:
+  general:
+    level: ERROR

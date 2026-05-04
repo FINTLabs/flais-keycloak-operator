@@ -1,0 +1,120 @@
+[versions]
+kotlin = "2.3.21"
+keycloak = "26.6.0"
+kc-admin = "26.0.9"
+ktlint = "14.2.0"
+gradle-versions = "0.54.0"
+docker-compose = "0.17.21"
+
+awaitility = "4.3.0"
+mockk = "1.14.5"
+fabric8 = "7.6.1"
+koin = "4.2.1"
+operatorSdk = "5.3.3"
+hoplite = "2.9.0"
+logback = "1.5.32"
+logstashEncoder = "9.0"
+jackson = "2.21.3"
+logunit = "2.0.0"
+http4k = "6.45.1.0"
+micrometer = "1.15.5"
+helm-java = "0.0.20"
+
+junit = "6.0.3"
+testcontainers = "2.0.5"
+kotlinx-serialization-json = "1.11.0"
+slf4j = "2.0.17"
+okhttp = "5.3.2"
+
+[libraries]
+keycloak-admin-client = { module = "org.keycloak:keycloak-admin-client", version.ref = "kc-admin" }
+
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit" }
+
+testcontainers-core = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+testcontainers-junit-jupiter = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainers" }
+testcontainers-k3s = { module = "org.testcontainers:testcontainers-k3s", version.ref = "testcontainers" }
+
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
+
+awaitility-kotlin = { module = "org.awaitility:awaitility-kotlin", version.ref = "awaitility" }
+
+helm-java = { module = "com.marcnuri.helm-java:helm-java", version.ref = "helm-java" }
+
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
+okhttp = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
+
+fabric8-kubernetes-client = { module = "io.fabric8:kubernetes-client", version.ref = "fabric8" }
+fabric8-generator-api = { module = "io.fabric8:crd-generator-api-v2", version.ref = "fabric8" }
+fabric8-generator-collector = { module = "io.fabric8:crd-generator-collector", version.ref = "fabric8" }
+fabric8-generator-annotations = { module = "io.fabric8:generator-annotations", version.ref = "fabric8" }
+
+operator-framework-core = { module = "io.javaoperatorsdk:operator-framework-core", version.ref = "operatorSdk" }
+operator-micrometer-support = { module = "io.javaoperatorsdk:micrometer-support", version.ref = "operatorSdk" }
+
+hoplite-core = { module = "com.sksamuel.hoplite:hoplite-core", version.ref = "hoplite" }
+hoplite-yaml = { module = "com.sksamuel.hoplite:hoplite-yaml", version.ref = "hoplite" }
+
+jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
+
+http4k-bom = { module = "org.http4k:http4k-bom", version.ref = "http4k" }
+http4k-server-jetty = { module = "org.http4k:http4k-server-jetty", version.ref = "http4k" }
+http4k-metrics-micrometer = { module = "org.http4k:http4k-ops-micrometer", version.ref = "http4k" }
+
+micrometer-registry-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version.ref = "micrometer" }
+
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+logstash-logback-encoder = { module = "net.logstash.logback:logstash-logback-encoder", version.ref = "logstashEncoder" }
+
+koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin" }
+koin-core = { module = "io.insert-koin:koin-core" }
+
+[bundles]
+junit = [
+    "junit-jupiter",
+    "junit-platform-launcher",
+]
+
+testcontainers = [
+    "testcontainers-core",
+    "testcontainers-junit-jupiter",
+    "testcontainers-k3s",
+]
+
+fabric8-generator = [
+    "fabric8-generator-api",
+    "fabric8-generator-collector",
+    "fabric8-generator-annotations",
+]
+
+operator = [
+    "operator-framework-core",
+    "operator-micrometer-support",
+]
+
+hoplite = [
+    "hoplite-core",
+    "hoplite-yaml",
+]
+
+http4k = [
+    "http4k-server-jetty",
+    "http4k-metrics-micrometer",
+]
+
+logging = [
+    "logback-classic",
+    "logstash-logback-encoder",
+]
+
+koin = [
+    "koin-core",
+]
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
+gradle-versions = { id = "com.github.ben-manes.versions", version.ref = "gradle-versions" }
+docker-compose = { id = "com.avast.gradle.docker-compose", version.ref = "docker-compose" }
+fabric8-generator = { id = "io.fabric8.java-generator", version.ref = "fabric8" }

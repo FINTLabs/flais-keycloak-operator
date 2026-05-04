@@ -1,0 +1,53 @@
+# Default values for ssoerator-2.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+image:
+  repository: ghcr.io/fintlabs/ssoerator-2-poc
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+keycloak:
+  baseUrl: "http://172.17.0.1:8080"
+  wellKnownBaseUrl: "http://172.17.0.1:8080"
+  adminUsername: "admin"
+  adminPassword: "admin"
+
+wonderwall:
+  logLevel: "info"
+  image: "ghcr.io/nais/wonderwall:2026-02-10-090912-dd200bb"
+
+extraEnv: []
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+securityContext: {}
+
+resources:
+  limits:
+    memory: 512Mi
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+
+# Additional volumes on the output Deployment definition.
+volumes: []
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: []

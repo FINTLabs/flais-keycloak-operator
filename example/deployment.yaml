@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: beta-fint-samtykke-frontend-v2
+  labels:
+    app: beta-fint-samtykke-frontend-v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: beta-fint-samtykke-frontend-v2
+  template:
+    metadata:
+      labels:
+        app: beta-fint-samtykke-frontend-v2
+    spec:
+      containers:
+        - name: app
+          image: nginx:stable
+          ports:
+            - name: app
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "3000"
