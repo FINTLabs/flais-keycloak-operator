@@ -1,19 +1,20 @@
 import org.gradle.kotlin.dsl.invoke
 
 plugins {
-    kotlin("jvm")
-    application
+    base
+    alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.docker.compose)
+    alias(libs.plugins.fabric8.generator)
     alias(libs.plugins.gradle.versions)
     alias(libs.plugins.ktlint)
-    alias(libs.plugins.fabric8.generator)
 }
 
 group = "no.novari"
 version = "1.0.0"
 
-sourceSets {
-    main { java { srcDirs(layout.buildDirectory.dir("generated/source/kubernetes/main")) } }
+repositories {
+    gradlePluginPortal()
+    mavenCentral()
 }
 
 val operatorImage = "flais-keycloak-operator:dev"
@@ -21,18 +22,15 @@ val operatorImageRepository = operatorImage.substringBeforeLast(":")
 val operatorImageTag = operatorImage.substringAfterLast(":")
 val operatorImageTar = layout.buildDirectory.file("docker/flais-keycloak-operator-dev.tar")
 
+sourceSets {
+    main {
+        java {
+            srcDirs(layout.buildDirectory.dir("generated/source/kubernetes/main"))
+        }
+    }
+}
+
 dependencies {
-    testRuntimeOnly(libs.bundles.junit)
-    testRuntimeOnly(libs.slf4j.simple)
-
-    testImplementation(libs.keycloak.admin.client)
-    testImplementation(libs.bundles.junit)
-    testImplementation(libs.bundles.testcontainers)
-    testImplementation(libs.kotlinx.serialization.json)
-    testImplementation(libs.okhttp)
-    testImplementation(libs.awaitility.kotlin)
-    testImplementation(libs.helm.java)
-
     implementation(platform(libs.http4k.bom))
     implementation(platform(libs.koin.bom))
 
@@ -40,24 +38,25 @@ dependencies {
     implementation(libs.bundles.fabric8.generator)
     implementation(libs.bundles.operator)
 
-    implementation(libs.micrometer.registry.prometheus)
     implementation(libs.bundles.http4k)
-
     implementation(libs.bundles.koin)
-
-    implementation(libs.jackson.module.kotlin)
-
     implementation(libs.bundles.hoplite)
     implementation(libs.bundles.logging)
 
+    implementation(libs.jackson.module.kotlin)
     implementation(libs.keycloak.admin.client)
-}
+    implementation(libs.micrometer.registry.prometheus)
 
-allprojects {
-    repositories {
-        gradlePluginPortal()
-        mavenCentral()
-    }
+    testImplementation(libs.awaitility.kotlin)
+    testImplementation(libs.helm.java)
+    testImplementation(libs.keycloak.admin.client)
+    testImplementation(libs.kotlinx.serialization.json)
+    testImplementation(libs.okhttp)
+    testImplementation(libs.bundles.junit)
+    testImplementation(libs.bundles.testcontainers)
+
+    testRuntimeOnly(libs.bundles.junit)
+    testRuntimeOnly(libs.slf4j.simple)
 }
 
 tasks {
@@ -75,13 +74,13 @@ tasks {
     }
 
     register<GenerateCrdsTask>("generateCrds") {
-        description = "Generate CRDs for operator"
         group = "crd"
+        description = "Generate CRDs for operator"
 
         sourceSet = sourceSets.main
         includePackages = listOf("no.novari.application.api")
         targetDirectory =
-            project.layout.projectDirectory.dir("charts/flais-keycloak-operator-crd/charts/crds/templates")
+            layout.projectDirectory.dir("charts/flais-keycloak-operator-crd/charts/crds/templates")
 
         dependsOn(compileJava, compileKotlin)
     }
@@ -96,15 +95,6 @@ dockerCompose {
     environment.put("KEYCLOAK_ADMIN_PASSWORD", "admin")
 }
 
-@Suppress("UnstableApiUsage")
-fun JvmTestSuite.addSuiteSources(name: String) {
-    sources {
-        kotlin {
-            srcDir("src/test/$name/kotlin")
-        }
-    }
-}
-
 tasks.withType<Test>().configureEach {
     systemProperty("org.slf4j.simpleLogger.defaultLogLevel", "info")
     systemProperty("project.rootDir", rootProject.projectDir.absolutePath)
@@ -113,6 +103,15 @@ tasks.withType<Test>().configureEach {
     systemProperty("operator.image.tar", operatorImageTar.get().asFile.absolutePath)
 
     environment("KEYCLOAK_VERSION", libs.versions.keycloak.get())
+}
+
+@Suppress("UnstableApiUsage")
+fun JvmTestSuite.addSuiteSources(name: String) {
+    sources {
+        kotlin {
+            srcDir("src/test/$name/kotlin")
+        }
+    }
 }
 
 @Suppress("UnstableApiUsage", "unused")
@@ -127,13 +126,15 @@ testing {
 
             if (name != "test") {
                 configurations {
-                    named("${name}Implementation").configure {
+                    named("${name}Implementation") {
                         extendsFrom(configurations.testImplementation.get())
                     }
-                    named("${name}RuntimeOnly").configure {
+
+                    named("${name}RuntimeOnly") {
                         extendsFrom(configurations.testRuntimeOnly.get())
                     }
-                    named("${name}CompileOnly").configure {
+
+                    named("${name}CompileOnly") {
                         extendsFrom(configurations.testCompileOnly.get())
                     }
                 }
@@ -146,12 +147,15 @@ testing {
             targets {
                 all {
                     testTask.configure {
-                        description = "Runs integration tests."
                         group = "verification"
+                        description = "Runs integration tests."
 
                         dependsOn("saveOperatorDockerImage")
 
-                        systemProperty("operator.image.tar", operatorImageTar.get().asFile.absolutePath)
+                        systemProperty(
+                            "operator.image.tar",
+                            operatorImageTar.get().asFile.absolutePath,
+                        )
                     }
                 }
             }
@@ -204,11 +208,12 @@ tasks.register<Exec>("importOperatorImageToK3s") {
     dependsOn("buildOperatorDockerImage")
 
     commandLine(
-        "bash", "-c",
+        "bash",
+        "-c",
         """
-        docker save "$operatorImage" | docker compose exec -T server ctr -n k8s.io images import -
-        docker save "$operatorImage" | docker compose exec -T agent ctr -n k8s.io images import -
-        """.trimIndent()
+            docker save "$operatorImage" | docker compose exec -T server ctr -n k8s.io images import -
+            docker save "$operatorImage" | docker compose exec -T agent ctr -n k8s.io images import -
+        """.trimIndent(),
     )
 }
 
@@ -242,6 +247,7 @@ tasks.register("runDev") {
             "--build",
             "keycloak",
         )
+
         println("Built & started flais-keycloak-operator dev environment")
     }
 
@@ -271,9 +277,8 @@ tasks.register("cleanupDev") {
 tasks.register<Exec>("checkDeps") {
     group = "tools"
     description = "Check dependencies for new versions"
-    doFirst {
-        commandLine("./gradlew", "dependencyUpdates")
-    }
+
+    commandLine("./gradlew", "dependencyUpdates")
 }
 
 tasks.jar {
@@ -290,9 +295,10 @@ tasks.jar {
 
     doLast {
         runtimeDeps.forEach {
-            val file = buildDirectory.file("libs/${it.name}").get().asFile
-            if (!file.exists()) {
-                it.copyTo(file)
+            val targetFile = buildDirectory.file("libs/${it.name}").get().asFile
+
+            if (!targetFile.exists()) {
+                it.copyTo(targetFile)
             }
         }
     }
