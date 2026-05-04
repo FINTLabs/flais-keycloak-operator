@@ -1,9 +1,8 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "ssoerator2.fullname" . }}
-  labels:
-    {{- include "ssoerator2.labels" . | nindent 4 }}
+  name: { { include "flais-keycloak-operator.fullname" . } }
+  labels: { { - include "flais-keycloak-operator.labels" . | nindent 4 } }
 rules:
   - apiGroups:
       - "traefik.containo.us"

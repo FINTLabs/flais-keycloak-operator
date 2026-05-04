@@ -1,8 +1,8 @@
 apiVersion: v2
-name: ssoerator2-crd
+name: flais-keycloak-operator-crd
 description: A Helm chart for Kubernetes
 sources:
-  - https://github.com/fintlabs/ssoerator-2-poc/tree/main/charts/ssoerator2-crd
+  - https://github.com/fintlabs/flais-keycloak-operator/tree/main/charts/flais-keycloak-operator-crd
 # A chart can be either an 'application' or a 'library' chart.
 #
 # Application charts are a collection of templates that can be packaged into versioned archives

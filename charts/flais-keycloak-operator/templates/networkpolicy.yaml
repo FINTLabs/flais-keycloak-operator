@@ -1,13 +1,13 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ include "ssoerator2.fullname" . }}-prometheus
+  name: {{ include "flais-keycloak-operator.fullname" . }}-prometheus
   labels:
-    {{- include "ssoerator2.labels" . | nindent 4 }}
+    {{- include "flais-keycloak-operator.labels" . | nindent 4 }}
 spec:
   podSelector:
     matchLabels:
-      {{- include "ssoerator2.selectorLabels" . | nindent 6 }}
+      {{- include "flais-keycloak-operator.selectorLabels" . | nindent 6 }}
   ingress:
     - from:
         - namespaceSelector:

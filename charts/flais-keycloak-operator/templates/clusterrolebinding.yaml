@@ -2,15 +2,15 @@
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: {{ include "ssoerator2.fullname" . }}
+  name: {{ include "flais-keycloak-operator.fullname" . }}
   labels:
-    {{- include "ssoerator2.labels" . | nindent 4 }}
+    {{- include "flais-keycloak-operator.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "ssoerator2.fullname" . }}
+  name: {{ include "flais-keycloak-operator.fullname" . }}
 subjects:
   - kind: ServiceAccount
-    name: {{ include "ssoerator2.serviceAccountName" . }}
+    name: {{ include "flais-keycloak-operator.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
 {{- end }}
