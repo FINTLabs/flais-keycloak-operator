@@ -1,5 +1,3 @@
-import org.gradle.kotlin.dsl.invoke
-
 plugins {
     kotlin("jvm")
     application
@@ -22,14 +20,6 @@ val operatorImageRepository = operatorImage.substringBeforeLast(":")
 val operatorImageTag = operatorImage.substringAfterLast(":")
 val operatorImageTar = layout.buildDirectory.file("docker/flais-keycloak-operator-dev.tar")
 
-sourceSets {
-    main {
-        java {
-            srcDirs(layout.buildDirectory.dir("generated/source/kubernetes/main"))
-        }
-    }
-}
-
 dependencies {
     implementation(platform(libs.http4k.bom))
     implementation(platform(libs.koin.bom))
@@ -49,7 +39,6 @@ dependencies {
 
     testImplementation(libs.awaitility.kotlin)
     testImplementation(libs.helm.java)
-    testImplementation(libs.keycloak.admin.client)
     testImplementation(libs.kotlinx.serialization.json)
     testImplementation(libs.okhttp)
     testImplementation(libs.bundles.junit)
@@ -60,31 +49,35 @@ dependencies {
     testRuntimeOnly(libs.slf4j.simple)
 }
 
-tasks {
-    javaGen {
-        source = file(layout.projectDirectory.dir("src/main/resources/kubernetes"))
-        target = file(layout.buildDirectory.dir("generated/source/kubernetes/main"))
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
     }
+}
 
-    compileKotlin {
-        dependsOn(crd2java)
+val ensureJavaClassesDir by tasks.registering {
+    description = "Ensures the Java classes directory exists for Fabric8 CRD generation"
+
+    doLast {
+        layout.buildDirectory
+            .dir("classes/java/main")
+            .get()
+            .asFile
+            .mkdirs()
     }
+}
 
-    compileJava {
-        dependsOn(crd2java)
-    }
+tasks.register<GenerateCrdsTask>("generateCrds") {
+    group = "crd"
+    description = "Generate CRDs for operator"
 
-    register<GenerateCrdsTask>("generateCrds") {
-        group = "crd"
-        description = "Generate CRDs for operator"
+    sourceSet = sourceSets.main
+    includePackages = listOf("no.novari.application.api")
 
-        sourceSet = sourceSets.main
-        includePackages = listOf("no.novari.application.api")
-        targetDirectory =
-            layout.projectDirectory.dir("charts/flais-keycloak-operator-crd/charts/crds/templates")
+    targetDirectory =
+        layout.projectDirectory.dir("charts/flais-keycloak-operator-crd/charts/crds/templates")
 
-        dependsOn(compileJava, compileKotlin)
-    }
+    dependsOn(tasks.named("classes"), ensureJavaClassesDir)
 }
 
 dockerCompose {
@@ -212,8 +205,8 @@ tasks.register<Exec>("importOperatorImageToK3s") {
         "bash",
         "-c",
         """
-            docker save "$operatorImage" | docker compose exec -T server ctr -n k8s.io images import -
-            docker save "$operatorImage" | docker compose exec -T agent ctr -n k8s.io images import -
+        docker save "$operatorImage" | docker compose exec -T server ctr -n k8s.io images import -
+        docker save "$operatorImage" | docker compose exec -T agent ctr -n k8s.io images import -
         """.trimIndent(),
     )
 }

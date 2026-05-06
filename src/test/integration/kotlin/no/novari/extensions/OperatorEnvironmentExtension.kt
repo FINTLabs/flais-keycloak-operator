@@ -64,7 +64,13 @@ class OperatorEnvironmentExtension :
                     store.put(kubernetesClient, it)
                 }
 
-        val helmClient = HelmClient(env.k3s.kubeConfigYaml, "default")
+        val rootDir =
+            System
+                .getProperty("project.rootDir")
+                ?.let { Paths.get(it).normalize() }
+                ?: throw IllegalStateException("project.rootDir not set, could not install charts")
+
+        val helmClient = HelmClient(env.k3s.kubeConfigYaml, env.debugKubeconfigPath, "default")
 
         kubernetesClient
             .namespaces()
@@ -76,13 +82,7 @@ class OperatorEnvironmentExtension :
                     .build(),
             ).serverSideApply()
 
-        val rootDir =
-            System
-                .getProperty("project.rootDir")
-                ?.let { Paths.get(it).normalize() }
-                ?: throw IllegalStateException("project.rootDir not set, could not install charts")
-
-        if (!crdExists(kubernetesClient, "flaisapplications.novari.no")) {
+        if (!crdExists(kubernetesClient, "flaisauthentications.novari.no")) {
             helmClient.installChart(
                 releaseName = "flais-keycloak-operator-crd",
                 chart = rootDir.resolve("charts/flais-keycloak-operator-crd"),

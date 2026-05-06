@@ -78,7 +78,8 @@ class KeycloakClientService {
 
     fun clientId(resource: FlaisAuthentication): String = resource.metadata.name
 
-    fun ingressUrl(resource: FlaisAuthentication): String = "https://${resource.spec.hostname.trimEnd('/')}/${resource.spec.basePath.trim('/')}"
+    fun ingressUrl(resource: FlaisAuthentication): String =
+        "https://${resource.spec.hostname.trimEnd('/')}/${resource.spec.basePath.trim('/')}"
 
     private fun adminClient(): Keycloak =
         KeycloakBuilder

@@ -1,68 +1,16 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: { { include "flais-keycloak-operator.fullname" . } }
-  labels: { { - include "flais-keycloak-operator.labels" . | nindent 4 } }
+  name: {{ include "flais-keycloak-operator.fullname" . }}
+  labels:
+    {{- include "flais-keycloak-operator.labels" . | nindent 4 }}
 rules:
-  - apiGroups:
-      - "traefik.containo.us"
-    resources:
-      - "ingressroutes"
-    verbs:
-      - "get"
-      - "list"
-      - "watch"
-
-  - apiGroups:
-      - ""
-    resources:
-      - "secrets"
-      - "services"
-    verbs:
-      - "get"
-      - "list"
-      - "watch"
-      - "create"
-      - "update"
-      - "patch"
-      - "delete"
-
-  - apiGroups:
-      - "apps"
-    resources:
-      - "deployments"
-    verbs:
-      - "get"
-      - "list"
-      - "watch"
-      - "create"
-      - "update"
-      - "patch"
-      - "delete"
-
-  - apiGroups:
-      - "batch"
-    resources:
-      - "jobs"
-      - "cronjobs"
-    verbs:
-      - "get"
-      - "list"
-      - "watch"
-      - "create"
-      - "update"
-      - "patch"
-      - "delete"
-
   - apiGroups:
       - "novari.no"
     resources:
-      - "starters"
-      - "starters/status"
-      - "starters/finalizers"
-      - "applications"
-      - "applications/status"
-      - "applications/finalizers"
+      - "flaisauthentications"
+      - "flaisauthentications/status"
+      - "flaisauthentications/finalizers"
     verbs:
       - "get"
       - "list"
@@ -84,6 +32,7 @@ rules:
       - ""
     resources:
       - configmaps
+      - secrets
     verbs:
       - get
       - list

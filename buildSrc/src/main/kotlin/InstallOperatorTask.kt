@@ -54,24 +54,7 @@ abstract class InstallOperatorTask : DefaultTask() {
                     .replace(Regex("^appVersion:.*", RegexOption.MULTILINE), "appVersion: \"$chartVersion\"")
             )
         }
-
-        fun installChart(
-            releaseName: String,
-            chart: String,
-            version: String? = null,
-            values: Map<String, String> = emptyMap(),
-        ) {
-            Helm.upgrade(chart)
-                .apply { version?.let { withVersion(it) } }
-                .withName(releaseName)
-                .withNamespace(namespace)
-                .waitReady()
-                .withTimeout(helmTimeoutSeconds)
-                .withKubeConfigContents(kubeConfigYaml)
-                .apply { values.forEach { (k, v) -> set(k, v) } }
-                .call()
-        }
-
+        
         fun installChart(
             releaseName: String,
             chart: java.nio.file.Path,
@@ -79,11 +62,14 @@ abstract class InstallOperatorTask : DefaultTask() {
         ) {
             Helm(chart)
                 .upgrade()
+                .install()
+                .withKubeConfig(kubeConfig.get().asFile.toPath())
+                .withKubeConfigContents(kubeConfigYaml)
                 .withName(releaseName)
                 .withNamespace(namespace)
                 .waitReady()
                 .withTimeout(helmTimeoutSeconds)
-                .withKubeConfigContents(kubeConfigYaml)
+
                 .apply { values.forEach { (k, v) -> set(k, v) } }
                 .call()
         }

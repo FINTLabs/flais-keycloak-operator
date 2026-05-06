@@ -19,7 +19,7 @@ class OperatorEnvironment(
     val keycloakAdminUser: String = "admin"
     val keycloakAdminPassword: String = "admin"
 
-    private val debugKubeconfigPath: Path =
+    val debugKubeconfigPath: Path =
         Path.of(System.getProperty(K3S_KUBECONFIG_PATH_PROPERTY, DEFAULT_KUBECONFIG_PATH))
 
     private val operatorImageTar: String =

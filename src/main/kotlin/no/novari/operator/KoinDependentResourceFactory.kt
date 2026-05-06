@@ -9,12 +9,11 @@ import org.koin.core.qualifier.Qualifier
 import kotlin.reflect.KClass
 
 class KoinDependentResourceFactory<
-        C : ControllerConfiguration<*>,
-        D : DependentResourceSpec<*, *, *>,
-        > :
+    C : ControllerConfiguration<*>,
+    D : DependentResourceSpec<*, *, *>,
+> :
     DependentResourceFactory<C, D>,
     KoinComponent {
-
     private val knownDependents =
         mutableMapOf<Pair<KClass<*>, Qualifier?>, DependentResource<*, *>>()
 
@@ -22,10 +21,11 @@ class KoinDependentResourceFactory<
         spec: D,
         controllerConfiguration: C,
     ): DependentResource<*, *> {
-        val koinSpec = spec as? KoinDependentResourceSpec<*, *>
-            ?: throw IllegalStateException(
-                "${spec.javaClass.canonicalName} cannot be instantiated. Not KoinDependentResourceSpec",
-            )
+        val koinSpec =
+            spec as? KoinDependentResourceSpec<*, *>
+                ?: throw IllegalStateException(
+                    "${spec.javaClass.canonicalName} cannot be instantiated. Not KoinDependentResourceSpec",
+                )
 
         val clazz: KClass<*> = koinSpec.dependentResourceClass.kotlin
         val qualifier: Qualifier? = koinSpec.qualifier

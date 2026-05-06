@@ -27,7 +27,7 @@ class CrdChartTest {
                         .items
                         .stream()
                         .filter({ crd -> "novari.no" == crd.spec.group })
-                        .filter({ crd -> "FlaisApplication" == crd.spec.names.kind })
+                        .filter({ crd -> "FlaisAuthentication" == crd.spec.names.kind })
                         .toList()
 
                 assertTrue(crds.isNotEmpty())
