@@ -9,13 +9,9 @@ fun applicationReconcilerModule() =
 
         single { KeycloakClientDR(get()) }
         single { KeycloakClientSecretDR() }
-        single { WonderwallDeploymentDR(get()) }
-        single { WonderwallServiceDR() }
-        single { TraefikIngressRouteDR() }
 
         single<Reconciler<*>> {
             ApplicationReconciler(
-                wonderwallDeploymentDR = get(),
                 keycloakClientService = get(),
             )
         }

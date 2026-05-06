@@ -1,8 +1,8 @@
 import org.gradle.kotlin.dsl.invoke
 
 plugins {
-    base
-    alias(libs.plugins.kotlin.jvm)
+    kotlin("jvm")
+    application
     alias(libs.plugins.docker.compose)
     alias(libs.plugins.fabric8.generator)
     alias(libs.plugins.gradle.versions)
@@ -54,6 +54,7 @@ dependencies {
     testImplementation(libs.okhttp)
     testImplementation(libs.bundles.junit)
     testImplementation(libs.bundles.testcontainers)
+    testImplementation(libs.bundles.koin)
 
     testRuntimeOnly(libs.bundles.junit)
     testRuntimeOnly(libs.slf4j.simple)

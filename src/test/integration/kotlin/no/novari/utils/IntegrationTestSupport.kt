@@ -1,16 +1,13 @@
 package no.novari.utils
 
-import io.fabric8.kubernetes.api.model.Container
 import io.fabric8.kubernetes.api.model.ContainerBuilder
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder
 import io.fabric8.kubernetes.api.model.apps.Deployment
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
-import no.novari.application.WONDERWALL_CONTAINER_NAME
-import no.novari.application.api.v1alpha1.Application
-import no.novari.application.api.v1alpha1.ApplicationSpec
-import us.containo.traefik.v1alpha1.IngressRoute
+import no.novari.application.api.v1alpha1.FlaisAuthentication
+import no.novari.application.api.v1alpha1.FlaisAuthenticationSpec
 import java.util.UUID
 
 class IntegrationTestSupport(
@@ -22,7 +19,7 @@ class IntegrationTestSupport(
     fun cleanup() {
         createdApplications.forEach { name ->
             kubernetesClient
-                .resources(Application::class.java)
+                .resources(FlaisAuthentication::class.java)
                 .withName(name)
                 .delete()
         }
@@ -84,51 +81,31 @@ class IntegrationTestSupport(
         hostname: String = "samtykke.vigoiks.no",
         basePath: String = "beta/rogfk-no",
         realm: String = "fint",
-        upstreamPort: Int = 3000,
-    ): Application {
+    ): FlaisAuthentication {
         if (!createdApplications.contains(name)) {
             createdApplications += name
         }
 
         return kubernetesClient
-            .resources(Application::class.java)
+            .resources(FlaisAuthentication::class.java)
             .resource(
-                Application().apply {
+                FlaisAuthentication().apply {
                     metadata =
                         ObjectMetaBuilder()
                             .withName(name)
                             .build()
-                    spec = ApplicationSpec(hostname, basePath, realm, upstreamPort)
+                    spec = FlaisAuthenticationSpec(hostname, basePath, realm)
                 },
             ).serverSideApply()
     }
 
     fun deleteApplication(name: String) {
         kubernetesClient
-            .resources(Application::class.java)
+            .resources(FlaisAuthentication::class.java)
             .withName(name)
             .delete()
         createdApplications.remove(name)
     }
-
-    fun wonderwallContainers(name: String): List<Container> =
-        kubernetesClient
-            .apps()
-            .deployments()
-            .withName(name)
-            .get()
-            ?.spec
-            ?.template
-            ?.spec
-            ?.containers
-            .orEmpty()
-            .filter { it.name == WONDERWALL_CONTAINER_NAME }
-
-    fun ingressRoute(name: String): IngressRoute? =
-        kubernetesClient
-            .resources(IngressRoute::class.java)
-            .withName(name)
-            .get()
 
     fun operatorEnv(name: String): String =
         kubernetesClient

@@ -8,7 +8,7 @@ import io.fabric8.kubernetes.model.annotation.Version
 
 @Group("novari.no")
 @Version("v1alpha1")
-@Kind("Application")
-class Application :
-    CustomResource<ApplicationSpec, Void>(),
+@Kind("FlaisAuthentication")
+class FlaisAuthentication :
+    CustomResource<FlaisAuthenticationSpec, Void>(),
     Namespaced

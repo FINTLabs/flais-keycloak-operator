@@ -40,8 +40,6 @@ class OperatorEnvironmentExtension :
     val namespace = ExtensionContext.Namespace.create("no.novari")
     val operatorEnvironment = "operator-environment"
     val kubernetesClient = "kubernetes-client"
-    val traefikChart = "traefik/traefik"
-    val traefikChartVersion = "27.0.2"
 
     lateinit var kubernetesNamespace: String
 
@@ -84,19 +82,7 @@ class OperatorEnvironmentExtension :
                 ?.let { Paths.get(it).normalize() }
                 ?: throw IllegalStateException("project.rootDir not set, could not install charts")
 
-        if (!crdExists(kubernetesClient, "applications.novari.no")) {
-            helmClient.addRepository(
-                repositoryName = "traefik",
-                repositoryUrl = "https://traefik.github.io/charts",
-            )
-
-            helmClient.installChart(
-                releaseName = "traefik",
-                chart = traefikChart,
-                version = traefikChartVersion,
-                valuesFile = rootDir.resolve("src/test/integration/resources/traefik/values.yaml"),
-            )
-
+        if (!crdExists(kubernetesClient, "flaisapplications.novari.no")) {
             helmClient.installChart(
                 releaseName = "flais-keycloak-operator-crd",
                 chart = rootDir.resolve("charts/flais-keycloak-operator-crd"),

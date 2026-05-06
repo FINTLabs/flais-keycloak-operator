@@ -7,7 +7,7 @@ import io.javaoperatorsdk.operator.api.config.informer.Informer
 import io.javaoperatorsdk.operator.api.reconciler.Context
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent
-import no.novari.application.api.v1alpha1.Application
+import no.novari.application.api.v1alpha1.FlaisAuthentication
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -15,15 +15,15 @@ import org.koin.core.component.inject
     informer = Informer(labelSelector = MANAGED_BY_APPLICATION_SELECTOR),
 )
 class KeycloakClientSecretDR :
-    CRUDKubernetesDependentResource<Secret, Application>(Secret::class.java),
+    CRUDKubernetesDependentResource<Secret, FlaisAuthentication>(Secret::class.java),
     KoinComponent {
     private val keycloakClientService: KeycloakClientService by inject()
 
     override fun name(): String = "keycloak-client-secret"
 
     override fun desired(
-        primary: Application,
-        context: Context<Application>,
+        primary: FlaisAuthentication,
+        context: Context<FlaisAuthentication>,
     ): Secret {
         val secretValue = keycloakClientService.clientSecret(primary)
 

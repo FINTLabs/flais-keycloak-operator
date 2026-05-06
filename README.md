@@ -1,320 +1,261 @@
-# Operator implementation notes
+# flais-keycloak-operator
 
-This document explains how the operator works.
+A Kotlin-based Kubernetes operator that automatically wires application deployments to Keycloak by injecting a [Wonderwall](https://github.com/nais/wonderwall) authentication sidecar and provisioning the corresponding Keycloak OIDC client.
 
-## What this project is
+## Overview
 
-This is a **Kotlin-based Kubernetes operator** built with:
+The operator watches for `Application` custom resources. When one is created, it:
 
-- **Java Operator SDK** for reconcile loops and dependent resource workflows
-- **Fabric8 Kubernetes Client** for Kubernetes API access
-- **Koin** for dependency injection
-- **Http4k + Jetty** for `/metrics`, `/health`, and `/ready`
-- **Micrometer + Prometheus** for metrics
+1. Provisions a Keycloak OIDC client for the application
+2. Injects a Wonderwall sidecar container into the matching Deployment
+3. Creates a Kubernetes Service that exposes the sidecar
 
-The operator defines a custom resource:
+When the `Application` resource is deleted, the operator reverses the process — removing the sidecar from the Deployment and deleting the Keycloak client.
 
-- `Application` — the real controller that wires an app deployment to Keycloak and injects a Wonderwall sidecar
+The operator does **not** own or manage the application Deployment itself. It augments an existing workload.
 
-## Entry point and runtime
+## Custom Resource: `Application`
 
-The process starts in `src/main/kotlin/no/novari/Application.kt`.
+**API group/version:** `novari.no/v1alpha1`
 
-Startup does three things:
+### Spec
 
-1. Starts Koin modules for the `Application` reconcilers.
-2. Starts an HTTP server on port `8080`.
-3. Starts the operator.
+| Field          | Type   | Required | Description                                                      |
+| -------------- | ------ | -------- | ---------------------------------------------------------------- |
+| `hostname`     | string | yes      | External hostname for the application (e.g. `myapp.example.com`) |
+| `basePath`     | string | yes      | Ingress path prefix (e.g. `beta/my-org`)                         |
+| `realm`        | string | yes      | Keycloak realm to manage the OIDC client in                      |
+| `upstreamPort` | int    | no       | Port the application container listens on (default: `3000`)      |
+| `scope`        | string | no       | OIDC scopes to request (default: `profile`)                      |
+| `logLevel`     | string | no       | Wonderwall log level (default: `info`)                           |
 
-### HTTP endpoints
-
-The operator exposes:
-
-- `GET /metrics` — Prometheus scrape endpoint
-- `GET /health` — returns `200 OK` when the operator runtime is started
-- `GET /ready` — returns `200 READY` when the operator runtime is started
-
-These probes are also used in the Helm deployment chart.
-
-## Dependency injection and operator registration
-
-Koin is used to register:
-
-- the Kubernetes client
-- the Prometheus registry / metrics adapter
-- the operator configuration
-- the dependent resources
-- the reconcilers themselves
-
-`OperatorConfiguration` extends `BaseConfigurationService` from Java Operator SDK and customizes how workflows are built.
-
-The important part is that this project adds its own `@Workflow` and `@Dependent` annotations, then translates them into Java Operator SDK dependent-resource specs at runtime.
-
-That means the reconciler classes stay compact, while the actual dependency graph is declared via annotations.
-
-## Custom resources
-
-## `Application`
-
-API:
-
-- Group: `novari.no`
-- Version: `v1alpha1`
-- Kind: `Application`
-
-Spec:
-
-```yaml
-spec:
-  hostname: samtykke.vigoiks.no
-  basePath: beta/rogfk-no
-  realm: fint
-```
-
-Fields:
-
-- `hostname` — external host for the application
-- `basePath` — ingress path prefix
-- `realm` — Keycloak realm to manage the client in
-
-Example:
+### Example
 
 ```yaml
 apiVersion: novari.no/v1alpha1
 kind: Application
 metadata:
-  name: beta-fint-samtykke-frontend-v2
+  name: my-app
 spec:
-  hostname: samtykke.vigoiks.no
-  basePath: beta/rogfk-no
+  hostname: myapp.example.com
+  basePath: beta/my-org
   realm: fint
 ```
 
-## What the `Application` controller does
+The `Application` resource must have the same `name` and `namespace` as the Deployment it targets.
+
+### Matching Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app # must match Application metadata.name
+  labels:
+    app: my-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+        - name: app
+          image: my-image:latest
+          ports:
+            - name: app
+              containerPort: 3000
+```
+
+## Reconcile Flow
+
+```
+Application CR created
+  │
+  ├─ 1. KeycloakClientDR
+  │      Create/update OIDC client in Keycloak
+  │
+  ├─ 2. WonderwallDeploymentDR  (depends on step 1)
+  │      Inject wonderwall sidecar into the existing Deployment
+  │
+  └─ 3. WonderwallServiceDR     (depends on step 2)
+         Create <app-name>-wonderwall Service pointing at port 8080
+```
+
+### Keycloak client configuration
+
+The operator creates an OIDC client with:
+
+- `clientId` = `metadata.name`
+- Protocol: `openid-connect`
+- Public client: `false`
+- Standard flow: enabled
+- PKCE: `S256`
+- Redirect URIs: `https://<hostname>/<basePath>/*`
+- Web origins: `+`
+- Post-logout redirect URIs: `+`
+
+### Wonderwall sidecar
+
+The injected sidecar container uses image `ghcr.io/nais/wonderwall` and binds to `0.0.0.0:8080`. It proxies traffic to `127.0.0.1:<upstreamPort>` (default `3000`).
+
+Key environment variables set on the sidecar:
+
+| Variable                           | Value                                                               |
+| ---------------------------------- | ------------------------------------------------------------------- |
+| `WONDERWALL_OPENID_CLIENT_ID`      | `metadata.name`                                                     |
+| `WONDERWALL_OPENID_WELL_KNOWN_URL` | `http://<keycloak>/realms/<realm>/.well-known/openid-configuration` |
+| `WONDERWALL_INGRESS`               | `https://<hostname>/<basePath>`                                     |
+| `WONDERWALL_UPSTREAM_HOST`         | `127.0.0.1:<upstreamPort>`                                          |
+| `WONDERWALL_BIND_ADDRESS`          | `0.0.0.0:8080`                                                      |
+| `WONDERWALL_AUTO_LOGIN`            | `true`                                                              |
+| `WONDERWALL_OPENID_SCOPES`         | `profile,<scope>`                                                   |
+
+### Service
+
+A Service named `<app-name>-wonderwall` is created in the same namespace, with:
+
+- Port `80` → targetPort `http` (the sidecar's `8080`)
+- Selector labels copied from the Deployment's `spec.selector.matchLabels`
+- Label `app.kubernetes.io/managed-by: application-operator`
+
+## Installation
+
+### Prerequisites
 
-`ApplicationReconciler` is the main controller.
+- Kubernetes cluster
+- Helm 3
+- A running Keycloak instance accessible from the operator pod
 
-It declares this workflow:
+### 1. Install CRDs
 
-1. `KeycloakClientDR`
-2. `WonderwallDeploymentDR` depends on `KeycloakClientDR`
-3. `WonderwallServiceDR` depends on `WonderwallDeploymentDR`
+```bash
+helm install flais-keycloak-operator-crd \
+  oci://ghcr.io/fintlabs/charts/flais-keycloak-operator-crd
+```
 
-The reconciler itself is intentionally thin:
+### 2. Install the operator
 
-- on reconcile: it delegates to `reconcileManagedWorkflow()`
-- on delete: it removes the Wonderwall sidecar from the target deployment and deletes the Keycloak client
+```bash
+helm install flais-keycloak-operator \
+  oci://ghcr.io/fintlabs/charts/flais-keycloak-operator \
+  --set keycloak.baseUrl=https://keycloak.example.com \
+  --set keycloak.adminUsername=admin \
+  --set keycloak.adminPassword=<secret>
+```
 
-So the real logic lives in the dependent resources.
+### Helm values
 
-## Detailed reconcile flow for `Application`
+| Value                       | Default                            | Description                  |
+| --------------------------- | ---------------------------------- | ---------------------------- |
+| `image.repository`          | `ghcr.io/fintlabs/ssoerator-2-poc` | Operator image               |
+| `image.pullPolicy`          | `IfNotPresent`                     | Image pull policy            |
+| `keycloak.baseUrl`          | `http://172.17.0.1:8080`           | Keycloak base URL            |
+| `keycloak.adminUsername`    | `admin`                            | Keycloak admin username      |
+| `keycloak.adminPassword`    | `admin`                            | Keycloak admin password      |
+| `wonderwall.image`          | `ghcr.io/nais/wonderwall:...`      | Wonderwall image to inject   |
+| `wonderwall.logLevel`       | `info`                             | Default Wonderwall log level |
+| `resources.limits.memory`   | `512Mi`                            | Operator memory limit        |
+| `resources.requests.cpu`    | `200m`                             | Operator CPU request         |
+| `resources.requests.memory` | `256Mi`                            | Operator memory request      |
 
-### 1. Keycloak client reconciliation
+## Environment Variables
 
-Handled by `KeycloakClientDR`, which delegates to `KeycloakClientService`.
+The operator reads the following environment variables at runtime (injected by the Helm chart):
 
-Behavior:
+### Required
 
-- Connects to Keycloak using admin credentials from environment variables
-- Looks up a client with `clientId == metadata.name`
-- Creates it if missing
-- Updates it if it already exists
+| Variable                  | Description                       |
+| ------------------------- | --------------------------------- |
+| `KEYCLOAK_BASE_URL`       | Base URL of the Keycloak instance |
+| `KEYCLOAK_ADMIN_USERNAME` | Admin username                    |
+| `KEYCLOAK_ADMIN_PASSWORD` | Admin password                    |
 
-### Keycloak connection env vars
+### Optional
 
-Required:
+| Variable                   | Default     | Description                     |
+| -------------------------- | ----------- | ------------------------------- |
+| `KEYCLOAK_ADMIN_REALM`     | `master`    | Realm used for admin API access |
+| `KEYCLOAK_ADMIN_CLIENT_ID` | `admin-cli` | Client ID for admin API access  |
 
-- `KEYCLOAK_BASE_URL`
-- `KEYCLOAK_ADMIN_USERNAME`
-- `KEYCLOAK_ADMIN_PASSWORD`
+## HTTP Endpoints
 
-Optional with defaults:
+The operator exposes an HTTP server on port `8080`:
 
-- `KEYCLOAK_ADMIN_REALM` default: `master`
-- `KEYCLOAK_ADMIN_CLIENT_ID` default: `admin-cli`
+| Endpoint       | Description                                      |
+| -------------- | ------------------------------------------------ |
+| `GET /metrics` | Prometheus metrics scrape endpoint               |
+| `GET /health`  | Returns `200 OK` when the operator is running    |
+| `GET /ready`   | Returns `200 READY` when the operator is running |
 
-### Resulting Keycloak client shape
+These are used as the liveness and readiness probes in the Helm deployment.
 
-The client representation is configured as:
+## Local Development
 
-- `clientId = metadata.name`
-- `name = metadata.name`
-- protocol: `openid-connect`
-- enabled: `true`
-- public client: `false`
-- standard flow enabled: `true`
-- direct access grants: `false`
-- service accounts: `false`
-- full scope allowed: `false`
-- redirect URIs: `https://<hostname>/<basePath>/*`
-- web origins: `+`
-- attributes:
-  - `pkce.code.challenge.method = S256`
-  - `post.logout.redirect.uris = +`
+### Prerequisites
 
-### Important note
+- JDK 21+
+- Docker / Docker Compose
+- A local Keycloak instance (provided via Docker Compose)
 
-The code sets `WONDERWALL_OPENID_CLIENT_SECRET=public-client`, while the Keycloak client itself is created with `isPublicClient = false`.
-That combination looks suspicious and may be a dev-time shortcut or an inconsistency that should be verified in practice.
+### Start the local stack
 
----
+```bash
+docker compose -f docker-compose.dev.yaml up
+```
 
-### 2. Wonderwall sidecar injection
+This starts Keycloak pre-configured with a `fint` realm.
 
-Handled by `WonderwallDeploymentDR`.
+### Run the operator locally
 
-This resource does **not** create a Deployment.
-Instead, it expects an existing Deployment with the **same name and namespace** as the `Application` custom resource.
+```bash
+./gradlew runDev
+```
 
-If the Deployment does not already exist, reconcile fails.
+### Run tests
 
-#### Expected target deployment
+```bash
+./gradlew test
+```
 
-From the example files, the intended pattern is:
+The test compose file (`docker-compose.test.yaml`) is used automatically during integration tests.
 
-- create a normal app Deployment first
-- create an `Application` CR with the same `metadata.name`
-- the operator mutates that Deployment by injecting a `wonderwall` container
+### Generate CRDs
 
-#### What it injects
+```bash
+./gradlew generateCrds
+```
 
-The operator ensures there is exactly one container named `wonderwall` at the front of the pod container list.
+Generated CRD manifests are written to `charts/flais-keycloak-operator-crd/`.
 
-Image:
+### Install to a local cluster
 
-- `ghcr.io/nais/wonderwall:2026-02-10-090912-dd200bb`
+```bash
+./gradlew installOperator
+```
 
-Port:
+## Technology Stack
 
-- container port `8080`, named `http`
+| Component            | Library                       |
+| -------------------- | ----------------------------- |
+| Language             | Kotlin 2.x                    |
+| Kubernetes client    | Fabric8 Kubernetes Client 7.x |
+| Operator framework   | Java Operator SDK (JOSDK)     |
+| Dependency injection | Koin 4.x                      |
+| HTTP server          | Http4k + Jetty                |
+| Metrics              | Micrometer + Prometheus       |
+| CRD generation       | Fabric8 CRD Generator v2      |
 
-Environment variables:
+## Architecture Notes
 
-- `WONDERWALL_OPENID_CLIENT_ID = <application metadata.name>`
-- `WONDERWALL_OPENID_CLIENT_SECRET = public-client`
-- `WONDERWALL_OPENID_WELL_KNOWN_URL = http://172.17.0.1:8080/realms/<realm>/.well-known/openid-configuration`
-- `WONDERWALL_INGRESS = https://<hostname>/<basePath>`
-- `WONDERWALL_LOG_LEVEL = debug`
-- `WONDERWALL_UPSTREAM_HOST = 127.0.0.1:3000`
-- `WONDERWALL_BIND_ADDRESS = 0.0.0.0:8080`
-- `WONDERWALL_AUTO_LOGIN = true`
-- `WONDERWALL_OPENID_SCOPES = profile,organization`
+The operator introduces a thin layer on top of JOSDK to support Koin-managed dependent resources:
 
-#### Idempotency
+- `@Workflow` / `@Dependent` / `@DependentRef` — custom annotations that declare the dependency graph on reconciler classes
+- `KoinDependentResourceFactory` — resolves dependent resource instances from the Koin container
+- `OperatorConfiguration` — translates the annotations into JOSDK `DependentResourceSpec`s at startup, wiring ready conditions and reconcile conditions automatically
 
-The controller compares the existing `wonderwall` container against the desired definition by checking:
-
-- container name
-- image
-- env vars
-- ports
-
-If it already matches exactly and appears once, it does nothing.
-Otherwise it rewrites the container list so the desired sidecar is present exactly once.
-
-#### Ready condition
-
-This dependent resource is considered ready when the Deployment contains a container named `wonderwall`.
-
----
-
-### 3. Wonderwall Service creation
-
-Handled by `WonderwallServiceDR`.
-
-This one **does** create a Kubernetes Service.
-
-It reads the target Deployment and reuses the Deployment's selector labels.
-Then it creates a Service named:
-
-- `<application-name>-wonderwall`
-
-Service properties:
-
-- port `80`
-- targetPort `http`
-- selector copied from the Deployment's `spec.selector.matchLabels`
-- label `app.kubernetes.io/managed-by: application-operator`
-
-This depends on the Wonderwall sidecar step, so the Service is created only after the sidecar step is considered ready.
-
----
-
-## Delete behavior
-
-When an `Application` resource is deleted, the controller performs cleanup:
-
-1. Removes the `wonderwall` container from the target Deployment, if present
-2. Deletes the Keycloak client, if present
-3. Returns default delete control to finish CR cleanup
-
-Notably:
-
-- it does **not** delete the main app Deployment
-- it does **not** explicitly delete the Service in `cleanup()`
-- the Wonderwall Service is managed as a dependent Kubernetes resource, so lifecycle depends on Java Operator SDK dependent-resource handling and owner references / matching behavior
-
-The intended design is clearly “augment an existing workload” rather than “own the full workload”.
-
-## How workflow wiring works internally
-
-Instead of relying only on Java Operator SDK annotations directly, this project introduces its own small workflow layer:
-
-- `@Workflow`
-- `@Dependent`
-- `@DependentRef`
-- `ReadyCondition`
-- `ReconcileCondition`
-- `KoinDependentResourceFactory`
-- `OperatorConfiguration`
-
-### Why it exists
-
-This layer gives the project two conveniences:
-
-1. **Koin-backed dependent resource creation**
-   - dependents can be regular Koin beans
-   - they can have constructor injection
-
-2. **Annotation-driven dependency graph**
-   - reconciler declares dependents once
-   - dependency ordering is built at runtime
-
-### What `OperatorConfiguration` does
-
-When the operator loads a reconciler:
-
-- it checks whether the reconciler class has a `@Workflow` annotation
-- if yes, it resolves the dependent classes from Koin
-- it converts them into Java Operator SDK `DependentResourceSpec`s
-- if the dependent implements `ReadyCondition`, that becomes the JOSDK ready condition
-- if the dependent implements `ReconcileCondition`, that becomes the reconcile condition
-- dependency names from `dependsOn` are resolved from the referenced dependent instances
-
-This is the key custom infrastructure in the repository.
-
-## Deployment model
-
-The repository includes two Helm charts:
-
-- `charts/flais-keycloak-operator` — deploys the operator itself
-- `charts/flais-keycloak-operator-crd` — installs the generated CRDs
-
-The operator Deployment exposes port `8080` for metrics / probes.
-Readiness and liveness probes hit `/ready` and `/health`.
-
-There is also local dev support via Docker Compose and helper Gradle tasks such as `runDev`.
-
-## Minimal mental model
-
-A concise way to think about the operator:
-
-- `Application` = “attach SSO to an existing Deployment” controller
-
-The `Application` reconcile loop performs three linked actions:
-
-- ensure a Keycloak client exists
-- inject a Wonderwall auth sidecar into the matching Deployment
-- expose the sidecar through a Service
-
-On deletion it undoes the sidecar injection and removes the Keycloak client.
+This keeps reconciler classes compact while allowing dependent resources to use constructor injection.

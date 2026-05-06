@@ -24,7 +24,7 @@ services:
   server:
     image: rancher/k3s:v1.35.3-k3s1
     command: >
-      server --disable=traefik
+      server
     privileged: true
     hostname: server-1
     ports:

@@ -7,7 +7,6 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.TaskAction
-import java.net.URI
 
 abstract class InstallOperatorTask : DefaultTask() {
 
@@ -88,21 +87,6 @@ abstract class InstallOperatorTask : DefaultTask() {
                 .apply { values.forEach { (k, v) -> set(k, v) } }
                 .call()
         }
-
-        Helm.repo().add()
-            .withName("traefik")
-            .withUrl(URI.create("https://traefik.github.io/charts"))
-            .call()
-
-        installChart(
-            releaseName = "traefik",
-            chart = "traefik/traefik",
-            version = "27.0.2",
-            values = mapOf(
-                "service.spec.externalTrafficPolicy" to "Local",
-                "ports.web.forwardedHeaders.insecure" to "true",
-            ),
-        )
 
         installChart(
             releaseName = "flais-keycloak-operator-crd",

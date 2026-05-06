@@ -53,8 +53,6 @@ spec:
               value: {{ .Values.keycloak.adminUsername | quote }}
             - name: KEYCLOAK_ADMIN_PASSWORD
               value: {{ .Values.keycloak.adminPassword | quote }}
-            - name: WONDERWALL_IMAGE
-              value: {{ .Values.wonderwall.image | quote }}
             {{- with .Values.extraEnv }}
             {{ toYaml . | nindent 10 }}
             {{- end }}

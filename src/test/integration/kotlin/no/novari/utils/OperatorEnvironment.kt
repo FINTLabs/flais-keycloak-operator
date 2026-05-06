@@ -29,7 +29,7 @@ class OperatorEnvironment(
     private val compose: ComposeContainer =
         createComposeContainer(baseComposeFile, testComposeFile)
 
-    private val k3s: K3sContainer =
+    val k3s: K3sContainer =
         createK3sContainer()
 
     fun start() {
@@ -94,7 +94,7 @@ class OperatorEnvironment(
             System.getenv("TEST_KUBERNETES_IMAGE") ?: DEFAULT_KUBERNETES_IMAGE
 
         return K3sContainer(DockerImageName.parse("$kubernetesImage:$kubernetesVersion")).apply {
-            withCommand("server", "--disable=traefik")
+            withCommand("server")
             withNetworkMode(DOCKER_NETWORK_NAME)
             withCopyFileToContainer(
                 MountableFile.forHostPath(operatorImageTar),

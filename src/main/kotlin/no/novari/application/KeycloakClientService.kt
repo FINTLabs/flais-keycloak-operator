@@ -1,13 +1,13 @@
 package no.novari.application
 
-import no.novari.application.api.v1alpha1.Application
+import no.novari.application.api.v1alpha1.FlaisAuthentication
 import org.keycloak.admin.client.CreatedResponseUtil
 import org.keycloak.admin.client.Keycloak
 import org.keycloak.admin.client.KeycloakBuilder
 import org.keycloak.representations.idm.ClientRepresentation
 
 class KeycloakClientService {
-    fun ensureClient(resource: Application) {
+    fun ensureClient(resource: FlaisAuthentication) {
         adminClient().use { kc ->
             val realm = kc.realm(resource.spec.realm)
             val clientId = clientId(resource)
@@ -32,7 +32,7 @@ class KeycloakClientService {
         }
     }
 
-    fun deleteClientIfExists(resource: Application) {
+    fun deleteClientIfExists(resource: FlaisAuthentication) {
         adminClient().use { kc ->
             val realm = kc.realm(resource.spec.realm)
             val existing = realm.clients().findByClientId(clientId(resource)).firstOrNull() ?: return
@@ -40,7 +40,7 @@ class KeycloakClientService {
         }
     }
 
-    fun clientSecret(resource: Application): String =
+    fun clientSecret(resource: FlaisAuthentication): String =
         adminClient().use { kc ->
             val realm = kc.realm(resource.spec.realm)
             val existing =
@@ -53,7 +53,7 @@ class KeycloakClientService {
                 ?: error("Keycloak client '${clientId(resource)}' has no secret")
         }
 
-    private fun clientRepresentation(resource: Application) =
+    private fun clientRepresentation(resource: FlaisAuthentication) =
         ClientRepresentation().apply {
             clientId = clientId(resource)
             name = clientId(resource)
@@ -76,9 +76,9 @@ class KeycloakClientService {
                 )
         }
 
-    fun clientId(resource: Application): String = resource.metadata.name
+    fun clientId(resource: FlaisAuthentication): String = resource.metadata.name
 
-    fun ingressUrl(resource: Application): String = "https://${resource.spec.hostname.trimEnd('/')}/${resource.spec.basePath.trim('/')}"
+    fun ingressUrl(resource: FlaisAuthentication): String = "https://${resource.spec.hostname.trimEnd('/')}/${resource.spec.basePath.trim('/')}"
 
     private fun adminClient(): Keycloak =
         KeycloakBuilder
@@ -90,5 +90,8 @@ class KeycloakClientService {
             .password(requiredEnv("KEYCLOAK_ADMIN_PASSWORD"))
             .build()
 
-    private fun requiredEnv(name: String): String = System.getenv(name) ?: error("Missing environment variable '$name'")
+    private fun requiredEnv(name: String): String =
+        System.getenv(name)
+            ?: System.getProperty(name)
+            ?: error("Missing env var or system property: $name")
 }

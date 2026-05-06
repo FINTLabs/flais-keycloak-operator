@@ -16,10 +16,6 @@ keycloak:
   adminUsername: "admin"
   adminPassword: "admin"
 
-wonderwall:
-  logLevel: "info"
-  image: "ghcr.io/nais/wonderwall:2026-02-10-090912-dd200bb"
-
 extraEnv: []
 
 serviceAccount:
