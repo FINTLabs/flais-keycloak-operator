@@ -16,11 +16,13 @@ import no.novari.operator.workflow.Workflow
 @ControllerConfiguration
 @Workflow(
     [
-        Dependent(KeycloakClientDR::class),
         Dependent(
-            KeycloakClientSecretDR::class,
-            dependsOn = [DependentRef(KeycloakClientDR::class)],
+            WonderwallSecretDR::class,
         ),
+        Dependent(
+            WonderwallConfigMapDR::class,
+        ),
+        Dependent(KeycloakClientDR::class, dependsOn = [DependentRef(WonderwallSecretDR::class)]),
     ],
 )
 class ApplicationReconciler(

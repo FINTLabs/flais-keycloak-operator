@@ -21,16 +21,28 @@ spec:
         properties:
           spec:
             properties:
-              basePath:
-                type: "string"
-              hostname:
-                type: "string"
-              logLevel:
-                type: "string"
+              ingress:
+                items:
+                  properties:
+                    host:
+                      type: "string"
+                    path:
+                      type: "string"
+                  type: "object"
+                type: "array"
               realm:
                 type: "string"
-              scope:
-                type: "string"
+              wonderwall:
+                properties:
+                  autoLogin:
+                    type: "boolean"
+                  logLevel:
+                    type: "string"
+                  scope:
+                    type: "string"
+                  upstreamPort:
+                    type: "integer"
+                type: "object"
             type: "object"
           status:
             type: "object"

@@ -3,9 +3,12 @@ package no.novari.application
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder
 import no.novari.application.api.v1alpha1.FlaisAuthentication
 
-const val KEYCLOAK_CLIENT_SECRET_KEY = "client-secret"
+const val WONDERWALL_CLIENT_SECRET_KEY = "WONDERWALL_OPENID_CLIENT_SECRET"
+const val WONDERWALL_CLIENT_ID_ANNOTATION = "flais.novari.no/wonderwall-client-id"
 
 fun wonderwallSecretName(primary: FlaisAuthentication): String = "${primary.metadata.name}-wonderwall"
+
+fun wonderwallConfigMapName(primary: FlaisAuthentication): String = "${primary.metadata.name}-wonderwall"
 
 fun ownerReferences(primary: FlaisAuthentication) =
     listOf(

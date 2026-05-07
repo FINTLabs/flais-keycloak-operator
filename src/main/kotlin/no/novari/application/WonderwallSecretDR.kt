@@ -14,12 +14,12 @@ import org.koin.core.component.inject
 @KubernetesDependent(
     informer = Informer(labelSelector = MANAGED_BY_APPLICATION_SELECTOR),
 )
-class KeycloakClientSecretDR :
+class WonderwallSecretDR :
     CRUDKubernetesDependentResource<Secret, FlaisAuthentication>(Secret::class.java),
     KoinComponent {
     private val keycloakClientService: KeycloakClientService by inject()
 
-    override fun name(): String = "keycloak-client-secret"
+    override fun name(): String = "wonderwall-secret"
 
     override fun desired(
         primary: FlaisAuthentication,
@@ -36,7 +36,7 @@ class KeycloakClientSecretDR :
                     ownerReferences = ownerReferences(primary)
                 },
             ).withType("Opaque")
-            .addToStringData(KEYCLOAK_CLIENT_SECRET_KEY, secretValue)
+            .addToStringData(WONDERWALL_CLIENT_SECRET_KEY, secretValue)
             .build()
     }
 }

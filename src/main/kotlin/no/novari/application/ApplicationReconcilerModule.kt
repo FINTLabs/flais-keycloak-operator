@@ -5,10 +5,10 @@ import org.koin.dsl.module
 
 fun applicationReconcilerModule() =
     module {
-        single { KeycloakClientService() }
+        single { KeycloakClientService(get()) }
 
         single { KeycloakClientDR(get()) }
-        single { KeycloakClientSecretDR() }
+        single { WonderwallSecretDR() }
 
         single<Reconciler<*>> {
             ApplicationReconciler(
