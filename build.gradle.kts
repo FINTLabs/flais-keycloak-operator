@@ -55,23 +55,20 @@ java {
     }
 }
 
+val mainSourceSet = sourceSets.named("main")
+
 tasks.register<GenerateCrdsTask>("generateCrds") {
     group = "crd"
     description = "Generate CRDs for operator"
 
-    notCompatibleWithConfigurationCache("GenerateCrdsTask stores SourceSet")
+    compileClasspath.from(mainSourceSet.map { it.compileClasspath })
+    outputClassesDirs.from(mainSourceSet.map { it.output.classesDirs })
 
-    layout.buildDirectory
-        .dir("classes/java/main")
-        .get()
-        .asFile
-        .mkdirs()
+    includePackages.set(listOf("no.novari.application.api"))
 
-    sourceSet = sourceSets.main
-    includePackages = listOf("no.novari.application.api")
-
-    targetDirectory =
+    targetDirectory.set(
         layout.projectDirectory.dir("charts/flais-keycloak-operator-crd/charts/crds/templates")
+    )
 
     dependsOn(tasks.named("classes"))
 }
