@@ -154,7 +154,7 @@ tasks.register<Exec>("buildOperatorDockerImage") {
     group = "docker"
     description = "Build operator Docker image for integration tests"
 
-    dependsOn("generateCrds")
+    dependsOn("jar", "generateCrds")
 
     workingDir(rootDir)
 

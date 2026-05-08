@@ -16,6 +16,9 @@ keycloak:
   adminUsername: "admin"
   adminPassword: "admin"
 
+logging:
+  level: info
+
 extraEnv: []
 
 serviceAccount:

@@ -1,0 +1,27 @@
+<configuration>
+    <property name="LOG_LEVEL" value="${LOG_LEVEL:-INFO}"/>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="no.novari" level="${LOG_LEVEL}"/>
+
+    <logger name="io.javaoperatorsdk" level="INFO"/>
+    <logger name="io.fabric8" level="WARN"/>
+    <logger name="io.netty" level="WARN"/>
+
+    <logger name="org.eclipse.jetty" level="WARN"/>
+
+    <logger name="org.keycloak" level="WARN"/>
+    <logger name="org.jboss.resteasy" level="WARN"/>
+    <logger name="org.apache.http" level="WARN"/>
+    <logger name="org.apache.http.headers" level="WARN"/>
+    <logger name="org.apache.http.wire" level="WARN"/>
+
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>
