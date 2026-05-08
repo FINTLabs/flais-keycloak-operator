@@ -45,6 +45,7 @@ class WonderwallConfigMapDR :
             "WONDERWALL_BIND_ADDRESS" to "0.0.0.0:8080",
             "WONDERWALL_AUTO_LOGIN" to "${primary.spec.wonderwall.autoLogin}",
             "WONDERWALL_OPENID_SCOPES" to openidScopes(primary),
+            "WONDERWALL_LOG_LEVEL" to primary.spec.wonderwall.logLevel,
         )
 
     private fun wellKnownUrl(primary: FlaisAuthentication): String {
