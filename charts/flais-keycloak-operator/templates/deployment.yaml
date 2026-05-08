@@ -47,8 +47,6 @@ spec:
           env:
             - name: KEYCLOAK_BASE_URL
               value: {{ .Values.keycloak.baseUrl | quote }}
-            - name: KEYCLOAK_WELL_KNOWN_BASE_URL
-              value: {{ .Values.keycloak.wellKnownBaseUrl | quote }}
             - name: KEYCLOAK_ADMIN_USERNAME
               value: {{ .Values.keycloak.adminUsername | quote }}
             - name: KEYCLOAK_ADMIN_PASSWORD
