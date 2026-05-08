@@ -2,7 +2,7 @@ package no.novari.application
 
 import io.fabric8.kubernetes.api.model.apps.Deployment
 import io.fabric8.kubernetes.client.KubernetesClient
-import no.novari.extensions.OperatorEnvironmentExtension
+import no.novari.environment.OperatorEnvironmentExtension
 import org.awaitility.Awaitility.await
 import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Assertions.assertNotNull

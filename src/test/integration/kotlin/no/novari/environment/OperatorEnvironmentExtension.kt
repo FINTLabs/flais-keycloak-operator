@@ -1,12 +1,11 @@
-package no.novari.extensions
+package no.novari.environment
 
 import io.fabric8.kubernetes.api.model.NamespaceBuilder
 import io.fabric8.kubernetes.client.Config
 import io.fabric8.kubernetes.client.ConfigBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
-import no.novari.utils.HelmClient
-import no.novari.utils.OperatorEnvironment
+import no.novari.client.HelmClient
 import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionConfigurationException
@@ -17,22 +16,6 @@ import org.junit.jupiter.api.extension.ParameterResolver
 import java.nio.file.Paths
 import java.util.UUID
 
-/**
- * JUnit 5 extension that manages the lifecycle of an Operator environment for tests.
- *
- * Responsibilities:
- * - Starts an [OperatorEnvironment] (Keycloak + Support containers via Testcontainers/Compose) once.
- * - Stops and cleans up the environment after all tests in the class have run.
- * - Provides parameter injection: test methods can declare parameters,
- *   and JUnit will resolve it automatically using this extension.
- *
- * How it works:
- * - [beforeAll] creates and initializes components and puts them in store.
- * - [afterAll] retrieves the components from the store and cleans up.
- * - [supportsParameter] and [resolveParameter] let you write tests with parameter injection.
- *
- * This extension is intended for testing against a fixed environment.
- */
 class OperatorEnvironmentExtension :
     BeforeAllCallback,
     AfterAllCallback,

@@ -5,10 +5,10 @@ import no.novari.application.api.v1alpha1.FlaisAuthentication
 import no.novari.application.api.v1alpha1.FlaisAuthenticationSpec
 import no.novari.application.api.v1alpha1.Ingress
 import no.novari.application.api.v1alpha1.WonderwallConfig
-import no.novari.extensions.OperatorEnvironmentExtension
-import no.novari.utils.IntegrationTestSupport
-import no.novari.utils.KcAdminClient
-import no.novari.utils.OperatorEnvironment
+import no.novari.environment.OperatorEnvironmentExtension
+import no.novari.fixture.IntegrationTestSupport
+import no.novari.client.KcAdminClient
+import no.novari.environment.OperatorEnvironment
 import org.awaitility.Awaitility.await
 import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Assertions.assertEquals

@@ -1,15 +1,11 @@
-package no.novari.utils
+package no.novari.client
 
+import no.novari.environment.OperatorEnvironment
 import org.keycloak.admin.client.Keycloak
 import org.keycloak.admin.client.KeycloakBuilder
 import org.keycloak.admin.client.resource.RealmResource
 import org.keycloak.representations.idm.ClientRepresentation
 
-/**
- * Utility wrapper around the Keycloak Admin Client used in tests.
- * Provides convenience functions for connecting to the realm, managing users and organization membership,
- * and performing on-demand tasks
- */
 object KcAdminClient {
     private const val ADMIN_REALM = "master"
     private const val ADMIN_CLIENT_ID = "admin-cli"

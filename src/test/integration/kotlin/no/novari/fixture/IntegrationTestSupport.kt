@@ -1,4 +1,4 @@
-package no.novari.utils
+package no.novari.fixture
 
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
@@ -9,16 +9,10 @@ import java.util.UUID
 class IntegrationTestSupport(
     private val kubernetesClient: KubernetesClient,
 ) {
-    private val createdApplications = mutableListOf<String>()
-
     fun applyApplication(
         name: String,
         spec: FlaisAuthenticationSpec,
     ): FlaisAuthentication {
-        if (!createdApplications.contains(name)) {
-            createdApplications += name
-        }
-
         return kubernetesClient
             .resources(FlaisAuthentication::class.java)
             .resource(

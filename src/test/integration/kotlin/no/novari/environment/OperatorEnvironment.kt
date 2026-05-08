@@ -1,4 +1,4 @@
-package no.novari.utils
+package no.novari.environment
 
 import org.testcontainers.containers.ComposeContainer
 import org.testcontainers.containers.wait.strategy.Wait

@@ -1,4 +1,4 @@
-package no.novari.utils
+package no.novari.client
 
 import com.marcnuri.helm.Helm
 import com.marcnuri.helm.InstallCommand
