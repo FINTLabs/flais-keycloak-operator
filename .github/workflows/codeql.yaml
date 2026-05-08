@@ -26,18 +26,6 @@ jobs:
         with:
           category: /language:actions
 
-  analyze-js-ts:
-    name: CodeQL (javascript-typescript)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: github/codeql-action/init@v4
-        with:
-          languages: javascript-typescript
-      - uses: github/codeql-action/analyze@v4
-        with:
-          category: /language:javascript-typescript
-
   analyze-java-kotlin:
     name: CodeQL (java-kotlin)
     runs-on: ubuntu-latest
