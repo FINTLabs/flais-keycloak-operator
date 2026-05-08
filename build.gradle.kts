@@ -55,21 +55,17 @@ java {
     }
 }
 
-val ensureJavaClassesDir by tasks.registering {
-    description = "Ensures the Java classes directory exists for Fabric8 CRD generation"
-
-    doLast {
-        layout.buildDirectory
-            .dir("classes/java/main")
-            .get()
-            .asFile
-            .mkdirs()
-    }
-}
-
 tasks.register<GenerateCrdsTask>("generateCrds") {
     group = "crd"
     description = "Generate CRDs for operator"
+
+    notCompatibleWithConfigurationCache("GenerateCrdsTask stores SourceSet")
+
+    layout.buildDirectory
+        .dir("classes/java/main")
+        .get()
+        .asFile
+        .mkdirs()
 
     sourceSet = sourceSets.main
     includePackages = listOf("no.novari.application.api")
@@ -77,7 +73,7 @@ tasks.register<GenerateCrdsTask>("generateCrds") {
     targetDirectory =
         layout.projectDirectory.dir("charts/flais-keycloak-operator-crd/charts/crds/templates")
 
-    dependsOn(tasks.named("classes"), ensureJavaClassesDir)
+    dependsOn(tasks.named("classes"))
 }
 
 dockerCompose {
