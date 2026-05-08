@@ -5,11 +5,13 @@ import io.javaoperatorsdk.operator.api.reconciler.dependent.DependentResource
 import io.javaoperatorsdk.operator.api.reconciler.dependent.ReconcileResult
 import no.novari.application.api.v1alpha1.FlaisAuthentication
 import no.novari.operator.dependent.ReadyCondition
+import no.novari.operator.dependent.ReconcileCondition
 
 class KeycloakClientDR(
     private val keycloakClientService: KeycloakClientService,
 ) : DependentResource<Unit, FlaisAuthentication>,
-    ReadyCondition<FlaisAuthentication> {
+    ReadyCondition<FlaisAuthentication>,
+    ReconcileCondition<FlaisAuthentication> {
     override fun name(): String = "keycloak-client"
 
     override fun reconcile(
@@ -28,4 +30,9 @@ class KeycloakClientDR(
         primary: FlaisAuthentication,
         context: Context<FlaisAuthentication>,
     ): Boolean = true
+
+    override fun shouldReconcile(
+        primary: FlaisAuthentication,
+        context: Context<FlaisAuthentication>,
+    ): Boolean = keycloakClientService.hasWonderwallSecret(primary)
 }

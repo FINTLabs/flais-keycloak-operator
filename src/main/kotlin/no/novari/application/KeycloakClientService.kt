@@ -1,7 +1,5 @@
 package no.novari.application
 
-import io.fabric8.kubernetes.api.model.ObjectMeta
-import io.fabric8.kubernetes.api.model.SecretBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 import no.novari.application.api.v1alpha1.FlaisAuthentication
 import org.keycloak.admin.client.CreatedResponseUtil
@@ -52,25 +50,11 @@ class KeycloakClientService(
         }
     }
 
-    private fun needsUpdate(
-        existing: ClientRepresentation,
-        desired: ClientRepresentation,
-    ): Boolean =
-        existing.name != desired.name ||
-            existing.protocol != desired.protocol ||
-            existing.isEnabled != desired.isEnabled ||
-            existing.isPublicClient != desired.isPublicClient ||
-            existing.isStandardFlowEnabled != desired.isStandardFlowEnabled ||
-            existing.isDirectAccessGrantsEnabled != desired.isDirectAccessGrantsEnabled ||
-            existing.isServiceAccountsEnabled != desired.isServiceAccountsEnabled ||
-            existing.isFullScopeAllowed != desired.isFullScopeAllowed ||
-            existing.redirectUris.orEmpty().toSet() != desired.redirectUris.orEmpty().toSet() ||
-            existing.webOrigins.orEmpty().toSet() != desired.webOrigins.orEmpty().toSet()
-
     fun deleteClientIfExists(resource: FlaisAuthentication) {
         adminClient().use { kc ->
             val realm = kc.realm(resource.spec.realm)
-            val existing = realm.clients().findByClientId(existingClientId(resource)).firstOrNull() ?: return
+            val clientId = existingPersistedClientId(resource) ?: return
+            val existing = realm.clients().findByClientId(clientId).firstOrNull() ?: return
             realm.clients().get(existing.id).remove()
         }
     }
@@ -118,6 +102,45 @@ class KeycloakClientService(
         secretResource.patch(existingSecret)
     }
 
+    fun clientId(resource: FlaisAuthentication): String =
+        existingSecretClientId(resource)
+            ?: error("Wonderwall Secret '${wonderwallSecretName(resource)}' is missing client id annotation")
+
+    fun desiredSecretClientId(resource: FlaisAuthentication): String = existingSecretClientId(resource) ?: UUID.randomUUID().toString()
+
+    fun existingPersistedClientId(resource: FlaisAuthentication): String? = existingSecretClientId(resource)
+
+    fun hasWonderwallSecret(resource: FlaisAuthentication): Boolean = wonderwallSecretResource(resource).get() != null
+
+    fun hasWonderwallConfigMap(resource: FlaisAuthentication): Boolean = wonderwallConfigMapResource(resource).get() != null
+
+    fun ingressUrl(resource: FlaisAuthentication): List<String> =
+        resource.spec.ingress.map { ingress ->
+            val host = ingress.host.trimEnd('/')
+            val base = ingress.path.trim('/')
+
+            if (base.isBlank()) {
+                "https://$host/*"
+            } else {
+                "https://$host/$base/*"
+            }
+        }
+
+    private fun needsUpdate(
+        existing: ClientRepresentation,
+        desired: ClientRepresentation,
+    ): Boolean =
+        existing.name != desired.name ||
+            existing.protocol != desired.protocol ||
+            existing.isEnabled != desired.isEnabled ||
+            existing.isPublicClient != desired.isPublicClient ||
+            existing.isStandardFlowEnabled != desired.isStandardFlowEnabled ||
+            existing.isDirectAccessGrantsEnabled != desired.isDirectAccessGrantsEnabled ||
+            existing.isServiceAccountsEnabled != desired.isServiceAccountsEnabled ||
+            existing.isFullScopeAllowed != desired.isFullScopeAllowed ||
+            existing.redirectUris.orEmpty().toSet() != desired.redirectUris.orEmpty().toSet() ||
+            existing.webOrigins.orEmpty().toSet() != desired.webOrigins.orEmpty().toSet()
+
     private fun clientRepresentation(
         resource: FlaisAuthentication,
         clientId: String,
@@ -143,45 +166,7 @@ class KeycloakClientService(
             )
     }
 
-    fun clientId(resource: FlaisAuthentication): String {
-        val existingSecret = wonderwallSecretResource(resource).get()
-        val existingClientId = existingSecret?.metadata?.annotations?.get(WONDERWALL_CLIENT_ID_ANNOTATION)
-
-        if (!existingClientId.isNullOrBlank()) {
-            return existingClientId
-        }
-
-        val generatedClientId = UUID.randomUUID().toString()
-
-        if (existingSecret == null) {
-            val secret =
-                SecretBuilder()
-                    .withMetadata(
-                        ObjectMeta().apply {
-                            name = wonderwallSecretName(resource)
-                            namespace = resource.metadata.namespace
-                            labels = MANAGED_BY_APPLICATION_LABEL
-                            annotations = mapOf(WONDERWALL_CLIENT_ID_ANNOTATION to generatedClientId)
-                            ownerReferences = ownerReferences(resource)
-                        },
-                    ).withType("Opaque")
-                    .build()
-
-            kubernetesClient
-                .secrets()
-                .inNamespace(resource.metadata.namespace)
-                .resource(secret)
-                .create()
-        } else {
-            existingSecret.metadata.annotations =
-                existingSecret.metadata.annotations.orEmpty() + mapOf(WONDERWALL_CLIENT_ID_ANNOTATION to generatedClientId)
-            wonderwallSecretResource(resource).patch(existingSecret)
-        }
-
-        return generatedClientId
-    }
-
-    fun existingClientId(resource: FlaisAuthentication): String? =
+    private fun existingSecretClientId(resource: FlaisAuthentication): String? =
         wonderwallSecretResource(resource)
             .get()
             ?.metadata
@@ -189,23 +174,17 @@ class KeycloakClientService(
             ?.get(WONDERWALL_CLIENT_ID_ANNOTATION)
             ?.takeIf { it.isNotBlank() }
 
-    fun ingressUrl(resource: FlaisAuthentication): List<String> =
-        resource.spec.ingress.map { ingress ->
-            val host = ingress.host.trimEnd('/')
-            val base = ingress.path.trim('/')
-
-            if (base.isBlank()) {
-                "https://$host/*"
-            } else {
-                "https://$host/$base/*"
-            }
-        }
-
     private fun wonderwallSecretResource(resource: FlaisAuthentication) =
         kubernetesClient
             .secrets()
             .inNamespace(resource.metadata.namespace)
             .withName(wonderwallSecretName(resource))
+
+    private fun wonderwallConfigMapResource(resource: FlaisAuthentication) =
+        kubernetesClient
+            .configMaps()
+            .inNamespace(resource.metadata.namespace)
+            .withName(wonderwallConfigMapName(resource))
 
     private fun adminClient(): Keycloak =
         KeycloakBuilder

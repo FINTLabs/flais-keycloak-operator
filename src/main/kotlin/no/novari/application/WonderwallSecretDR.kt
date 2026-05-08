@@ -8,6 +8,7 @@ import io.javaoperatorsdk.operator.api.reconciler.Context
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent
 import no.novari.application.api.v1alpha1.FlaisAuthentication
+import no.novari.operator.dependent.ReconcileCondition
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -16,6 +17,7 @@ import org.koin.core.component.inject
 )
 class WonderwallSecretDR :
     CRUDKubernetesDependentResource<Secret, FlaisAuthentication>(Secret::class.java),
+    ReconcileCondition<FlaisAuthentication>,
     KoinComponent {
     private val keycloakClientService: KeycloakClientService by inject()
 
@@ -25,7 +27,7 @@ class WonderwallSecretDR :
         primary: FlaisAuthentication,
         context: Context<FlaisAuthentication>,
     ): Secret {
-        val clientId = keycloakClientService.clientId(primary)
+        val clientId = keycloakClientService.desiredSecretClientId(primary)
         val existingClientSecret = keycloakClientService.existingWonderwallClientSecretData(primary)
 
         val builder =
@@ -46,4 +48,9 @@ class WonderwallSecretDR :
 
         return builder.build()
     }
+
+    override fun shouldReconcile(
+        primary: FlaisAuthentication,
+        context: Context<FlaisAuthentication>,
+    ): Boolean = keycloakClientService.hasWonderwallSecret(primary) || !keycloakClientService.hasWonderwallConfigMap(primary)
 }

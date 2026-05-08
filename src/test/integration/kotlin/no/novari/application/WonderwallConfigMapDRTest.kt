@@ -10,6 +10,7 @@ import no.novari.utils.IntegrationTestSupport
 import org.awaitility.Awaitility.await
 import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -69,6 +70,71 @@ class WonderwallConfigMapDRTest {
                 assertEquals("true", configMap.data["WONDERWALL_AUTO_LOGIN"])
                 assertEquals("profile", configMap.data["WONDERWALL_OPENID_SCOPES"])
                 assertEquals(wonderwallConfigMapName(resource), configMap.metadata.name)
+            }
+    }
+
+    @Test
+    fun `deleting configmap recreates it`(kubernetesClient: KubernetesClient) {
+        val support = IntegrationTestSupport(kubernetesClient)
+        val name = support.uniqueName("recreate-configmap")
+        val host = "samtykke.novari.no"
+        val base = "beta/rogfk-no"
+        val upstreamPort = 8081
+        val realm = "fint"
+
+        support.applyApplication(
+            name = name,
+            spec =
+                FlaisAuthenticationSpec(
+                    ingress = listOf(Ingress(host, base)),
+                    wonderwall = WonderwallConfig(upstreamPort = upstreamPort),
+                    realm = realm,
+                ),
+        )
+
+        var originalUid: String? = null
+
+        await()
+            .withPollInterval(Duration.ofSeconds(1))
+            .atMost(Duration.ofSeconds(60))
+            .untilAsserted {
+                val configMap =
+                    kubernetesClient
+                        .configMaps()
+                        .withName("$name-wonderwall")
+                        .get()
+
+                assertNotNull(configMap)
+                originalUid = configMap.metadata.uid
+            }
+
+        kubernetesClient
+            .configMaps()
+            .withName("$name-wonderwall")
+            .delete()
+
+        await()
+            .withPollInterval(Duration.ofSeconds(1))
+            .atMost(Duration.ofSeconds(60))
+            .untilAsserted {
+                val secret =
+                    kubernetesClient
+                        .secrets()
+                        .withName("$name-wonderwall")
+                        .get()
+
+                val configMap =
+                    kubernetesClient
+                        .configMaps()
+                        .withName("$name-wonderwall")
+                        .get()
+
+                assertNotNull(configMap)
+                assertNotNull(secret)
+                assertNotEquals(originalUid, configMap.metadata.uid)
+                assertEquals(secret.metadata.annotations[WONDERWALL_CLIENT_ID_ANNOTATION], configMap.data["WONDERWALL_OPENID_CLIENT_ID"])
+                assertEquals("https://$host/$base", configMap.data["WONDERWALL_INGRESS"])
+                assertEquals("$upstreamPort", configMap.data["WONDERWALL_UPSTREAM_PORT"])
             }
     }
 }

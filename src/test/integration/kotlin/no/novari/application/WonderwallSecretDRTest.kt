@@ -10,6 +10,7 @@ import org.awaitility.Awaitility.await
 import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.time.Duration
@@ -50,6 +51,63 @@ class WonderwallSecretDRTest {
 
                 val encodedClientSecret = secret.data[WONDERWALL_CLIENT_SECRET_KEY]
                 assertFalse(encodedClientSecret.isNullOrBlank())
+            }
+    }
+
+    @Test
+    fun `deleting secret does not recreate it when configmap exists`(kubernetesClient: KubernetesClient) {
+        val support = IntegrationTestSupport(kubernetesClient)
+        val name = support.uniqueName("missing-secret")
+        val host = "samtykke.novari.no"
+        val base = "beta/rogfk-no"
+
+        support.applyApplication(
+            name = name,
+            spec =
+                FlaisAuthenticationSpec(
+                    ingress = listOf(Ingress(host, base)),
+                    wonderwall = WonderwallConfig(upstreamPort = 8081),
+                    realm = "fint",
+                ),
+        )
+
+        await()
+            .withPollInterval(Duration.ofSeconds(1))
+            .atMost(Duration.ofSeconds(60))
+            .untilAsserted {
+                assertNotNull(
+                    kubernetesClient
+                        .configMaps()
+                        .withName("$name-wonderwall")
+                        .get(),
+                )
+                val secret =
+                    kubernetesClient
+                        .secrets()
+                        .withName("$name-wonderwall")
+                        .get()
+
+                assertNotNull(secret)
+                assertFalse(secret.metadata.annotations[WONDERWALL_CLIENT_ID_ANNOTATION].isNullOrBlank())
+                assertFalse(secret.data[WONDERWALL_CLIENT_SECRET_KEY].isNullOrBlank())
+            }
+
+        kubernetesClient
+            .secrets()
+            .withName("$name-wonderwall")
+            .delete()
+
+        await()
+            .pollDelay(Duration.ofSeconds(5))
+            .withPollInterval(Duration.ofSeconds(1))
+            .atMost(Duration.ofSeconds(20))
+            .untilAsserted {
+                assertNull(
+                    kubernetesClient
+                        .secrets()
+                        .withName("$name-wonderwall")
+                        .get(),
+                )
             }
     }
 }
