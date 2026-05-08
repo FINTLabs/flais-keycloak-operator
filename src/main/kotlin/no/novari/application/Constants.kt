@@ -1,7 +1,7 @@
 package no.novari.application
 
 const val MANAGED_BY_APPLICATION_LABEL_KEY = "app.kubernetes.io/managed-by"
-const val MANAGED_BY_APPLICATION_LABEL_VALUE = "application-operator"
+const val MANAGED_BY_APPLICATION_LABEL_VALUE = "flais-keycloak-operator"
 
 val MANAGED_BY_APPLICATION_LABEL =
     mapOf(
