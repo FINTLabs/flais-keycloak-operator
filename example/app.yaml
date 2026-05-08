@@ -3,6 +3,6 @@ kind: Application
 metadata:
   name: beta-fint-samtykke-frontend-v2
 spec:
-  hostname: samtykke.vigoiks.no
+  hostname: samtykke.novari.no
   basePath: beta/rogfk-no
   realm: fint

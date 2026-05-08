@@ -17,6 +17,7 @@ class KeycloakClientDR(
         context: Context<FlaisAuthentication>,
     ): ReconcileResult<Unit?> {
         keycloakClientService.ensureClient(primary)
+        keycloakClientService.syncWonderwallSecretValue(primary)
         return ReconcileResult.noOperation(null)
     }
 

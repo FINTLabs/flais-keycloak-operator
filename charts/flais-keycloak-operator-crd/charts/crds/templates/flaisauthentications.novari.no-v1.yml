@@ -28,21 +28,40 @@ spec:
                       type: "string"
                     path:
                       type: "string"
+                  required:
+                  - "host"
                   type: "object"
                 type: "array"
               realm:
                 type: "string"
+                x-kubernetes-validations:
+                - message: "Invalid realm"
+                  rule: "self in ['fint']"
               wonderwall:
                 properties:
                   autoLogin:
                     type: "boolean"
                   logLevel:
                     type: "string"
+                    x-kubernetes-validations:
+                    - message: "Invalid logLevel, must be one of info, debug"
+                      rule: "self in ['info', 'debug']"
                   scope:
-                    type: "string"
+                    items:
+                      type: "string"
+                    maxItems: 2
+                    type: "array"
+                    x-kubernetes-validations:
+                    - message: "Invalid scope, must be one of profile, organization"
+                      rule: "self.all(scope, scope in ['profile', 'organization'])"
                   upstreamPort:
                     type: "integer"
+                required:
+                - "upstreamPort"
                 type: "object"
+            required:
+            - "realm"
+            - "wonderwall"
             type: "object"
           status:
             type: "object"

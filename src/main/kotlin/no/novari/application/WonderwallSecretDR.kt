@@ -25,18 +25,25 @@ class WonderwallSecretDR :
         primary: FlaisAuthentication,
         context: Context<FlaisAuthentication>,
     ): Secret {
-        val secretValue = keycloakClientService.clientSecret(primary)
+        val clientId = keycloakClientService.clientId(primary)
+        val existingClientSecret = keycloakClientService.existingWonderwallClientSecretData(primary)
 
-        return SecretBuilder()
-            .withMetadata(
-                ObjectMeta().apply {
-                    name = wonderwallSecretName(primary)
-                    namespace = primary.metadata.namespace
-                    labels = MANAGED_BY_APPLICATION_LABEL
-                    ownerReferences = ownerReferences(primary)
-                },
-            ).withType("Opaque")
-            .addToStringData(WONDERWALL_CLIENT_SECRET_KEY, secretValue)
-            .build()
+        val builder =
+            SecretBuilder()
+                .withMetadata(
+                    ObjectMeta().apply {
+                        name = wonderwallSecretName(primary)
+                        namespace = primary.metadata.namespace
+                        labels = MANAGED_BY_APPLICATION_LABEL
+                        annotations = mapOf(WONDERWALL_CLIENT_ID_ANNOTATION to clientId)
+                        ownerReferences = ownerReferences(primary)
+                    },
+                ).withType("Opaque")
+
+        existingClientSecret?.let {
+            builder.addToData(WONDERWALL_CLIENT_SECRET_KEY, it)
+        }
+
+        return builder.build()
     }
 }

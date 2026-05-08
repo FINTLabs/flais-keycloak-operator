@@ -8,7 +8,22 @@ import org.keycloak.admin.client.CreatedResponseUtil
 import org.keycloak.admin.client.Keycloak
 import org.keycloak.admin.client.KeycloakBuilder
 import org.keycloak.representations.idm.ClientRepresentation
+import java.util.Base64
 import java.util.UUID
+
+const val KEYCLOAK_CLIENT_PROTOCOL = "openid-connect"
+const val KEYCLOAK_CLIENT_ENABLED = true
+const val KEYCLOAK_CLIENT_PUBLIC = false
+const val KEYCLOAK_CLIENT_STANDARD_FLOW_ENABLED = true
+const val KEYCLOAK_CLIENT_DIRECT_ACCESS_GRANTS_ENABLED = false
+const val KEYCLOAK_CLIENT_SERVICE_ACCOUNTS_ENABLED = false
+const val KEYCLOAK_CLIENT_FULL_SCOPE_ALLOWED = false
+
+const val KEYCLOAK_WEB_ORIGIN_SAME_ORIGIN = "+"
+const val KEYCLOAK_PKCE_CODE_CHALLENGE_METHOD_ATTRIBUTE = "pkce.code.challenge.method"
+const val KEYCLOAK_PKCE_CODE_CHALLENGE_METHOD = "S256"
+const val KEYCLOAK_POST_LOGOUT_REDIRECT_URIS_ATTRIBUTE = "post.logout.redirect.uris"
+const val KEYCLOAK_POST_LOGOUT_REDIRECT_URIS = "+"
 
 class KeycloakClientService(
     private val kubernetesClient: KubernetesClient,
@@ -42,20 +57,20 @@ class KeycloakClientService(
         desired: ClientRepresentation,
     ): Boolean =
         existing.name != desired.name ||
-                existing.protocol != desired.protocol ||
-                existing.isEnabled != desired.isEnabled ||
-                existing.isPublicClient != desired.isPublicClient ||
-                existing.isStandardFlowEnabled != desired.isStandardFlowEnabled ||
-                existing.isDirectAccessGrantsEnabled != desired.isDirectAccessGrantsEnabled ||
-                existing.isServiceAccountsEnabled != desired.isServiceAccountsEnabled ||
-                existing.isFullScopeAllowed != desired.isFullScopeAllowed ||
-                existing.redirectUris.orEmpty().toSet() != desired.redirectUris.orEmpty().toSet() ||
-                existing.webOrigins.orEmpty().toSet() != desired.webOrigins.orEmpty().toSet()
+            existing.protocol != desired.protocol ||
+            existing.isEnabled != desired.isEnabled ||
+            existing.isPublicClient != desired.isPublicClient ||
+            existing.isStandardFlowEnabled != desired.isStandardFlowEnabled ||
+            existing.isDirectAccessGrantsEnabled != desired.isDirectAccessGrantsEnabled ||
+            existing.isServiceAccountsEnabled != desired.isServiceAccountsEnabled ||
+            existing.isFullScopeAllowed != desired.isFullScopeAllowed ||
+            existing.redirectUris.orEmpty().toSet() != desired.redirectUris.orEmpty().toSet() ||
+            existing.webOrigins.orEmpty().toSet() != desired.webOrigins.orEmpty().toSet()
 
     fun deleteClientIfExists(resource: FlaisAuthentication) {
         adminClient().use { kc ->
             val realm = kc.realm(resource.spec.realm)
-            val existing = realm.clients().findByClientId(clientIdOrLegacyFallback(resource)).firstOrNull() ?: return
+            val existing = realm.clients().findByClientId(existingClientId(resource)).firstOrNull() ?: return
             realm.clients().get(existing.id).remove()
         }
     }
@@ -74,31 +89,59 @@ class KeycloakClientService(
                 ?: error("Keycloak client '$clientId' has no secret")
         }
 
+    fun existingWonderwallClientSecretData(resource: FlaisAuthentication): String? =
+        wonderwallSecretResource(resource)
+            .get()
+            ?.data
+            ?.get(WONDERWALL_CLIENT_SECRET_KEY)
+
+    fun syncWonderwallSecretValue(resource: FlaisAuthentication) {
+        val secretResource = wonderwallSecretResource(resource)
+        val existingSecret = secretResource.get() ?: return
+        val clientId = clientId(resource)
+        val clientSecret = clientSecret(resource)
+        val encodedClientSecret = Base64.getEncoder().encodeToString(clientSecret.toByteArray())
+
+        val desiredAnnotations =
+            existingSecret.metadata.annotations.orEmpty() +
+                mapOf(WONDERWALL_CLIENT_ID_ANNOTATION to clientId)
+        val desiredData =
+            existingSecret.data.orEmpty() +
+                mapOf(WONDERWALL_CLIENT_SECRET_KEY to encodedClientSecret)
+
+        if (existingSecret.metadata.annotations == desiredAnnotations && existingSecret.data == desiredData) {
+            return
+        }
+
+        existingSecret.metadata.annotations = desiredAnnotations
+        existingSecret.data = desiredData
+        secretResource.patch(existingSecret)
+    }
+
     private fun clientRepresentation(
         resource: FlaisAuthentication,
         clientId: String,
-    ) =
-        ClientRepresentation().apply {
-            this.clientId = clientId
-            name = resource.metadata.name
-            protocol = "openid-connect"
-            isEnabled = true
+    ) = ClientRepresentation().apply {
+        this.clientId = clientId
+        name = resource.metadata.name
+        protocol = KEYCLOAK_CLIENT_PROTOCOL
+        isEnabled = KEYCLOAK_CLIENT_ENABLED
 
-            isPublicClient = false
+        isPublicClient = KEYCLOAK_CLIENT_PUBLIC
 
-            isStandardFlowEnabled = true
-            isDirectAccessGrantsEnabled = false
-            isServiceAccountsEnabled = false
-            isFullScopeAllowed = false
+        isStandardFlowEnabled = KEYCLOAK_CLIENT_STANDARD_FLOW_ENABLED
+        isDirectAccessGrantsEnabled = KEYCLOAK_CLIENT_DIRECT_ACCESS_GRANTS_ENABLED
+        isServiceAccountsEnabled = KEYCLOAK_CLIENT_SERVICE_ACCOUNTS_ENABLED
+        isFullScopeAllowed = KEYCLOAK_CLIENT_FULL_SCOPE_ALLOWED
 
-            redirectUris = ingressUrl(resource) + "/*"
-            webOrigins = listOf("+")
-            attributes =
-                mapOf(
-                    "pkce.code.challenge.method" to "S256",
-                    "post.logout.redirect.uris" to "+",
-                )
-        }
+        redirectUris = ingressUrl(resource)
+        webOrigins = listOf(KEYCLOAK_WEB_ORIGIN_SAME_ORIGIN)
+        attributes =
+            mapOf(
+                KEYCLOAK_PKCE_CODE_CHALLENGE_METHOD_ATTRIBUTE to KEYCLOAK_PKCE_CODE_CHALLENGE_METHOD,
+                KEYCLOAK_POST_LOGOUT_REDIRECT_URIS_ATTRIBUTE to KEYCLOAK_POST_LOGOUT_REDIRECT_URIS,
+            )
+    }
 
     fun clientId(resource: FlaisAuthentication): String {
         val existingSecret = wonderwallSecretResource(resource).get()
@@ -138,7 +181,7 @@ class KeycloakClientService(
         return generatedClientId
     }
 
-    fun clientIdOrLegacyFallback(resource: FlaisAuthentication): String? =
+    fun existingClientId(resource: FlaisAuthentication): String? =
         wonderwallSecretResource(resource)
             .get()
             ?.metadata
@@ -152,9 +195,9 @@ class KeycloakClientService(
             val base = ingress.path.trim('/')
 
             if (base.isBlank()) {
-                "https://$host"
+                "https://$host/*"
             } else {
-                "https://$host/$base"
+                "https://$host/$base/*"
             }
         }
 
@@ -173,9 +216,4 @@ class KeycloakClientService(
             .username(ApplicationOperatorConfig.keycloakAdminUsername)
             .password(ApplicationOperatorConfig.keycloakAdminPassword)
             .build()
-
-    private fun requiredEnv(name: String): String =
-        System.getenv(name)
-            ?: System.getProperty(name)
-            ?: error("Missing env var or system property: $name")
 }

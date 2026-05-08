@@ -7,3 +7,4 @@ out/
 *.class
 data
 .kotlin
+java_pid46300.hprof

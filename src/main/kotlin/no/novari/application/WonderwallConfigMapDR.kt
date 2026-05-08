@@ -18,6 +18,7 @@ class WonderwallConfigMapDR :
     CRUDKubernetesDependentResource<ConfigMap, FlaisAuthentication>(ConfigMap::class.java),
     KoinComponent {
     private val keycloakClientService: KeycloakClientService by inject()
+
     override fun name(): String = "wonderwall-config"
 
     override fun desired(
@@ -57,10 +58,6 @@ class WonderwallConfigMapDR :
         }
 
     private fun openidScopes(primary: FlaisAuthentication): String =
-        sequenceOf("profile")
-            .plus(primary.spec.wonderwall.scope.splitToSequence(","))
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .distinct()
+        primary.spec.wonderwall.scope
             .joinToString(",")
 }

@@ -9,6 +9,7 @@ fun applicationReconcilerModule() =
 
         single { KeycloakClientDR(get()) }
         single { WonderwallSecretDR() }
+        single { WonderwallConfigMapDR() }
 
         single<Reconciler<*>> {
             ApplicationReconciler(
