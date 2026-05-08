@@ -1,0 +1,17 @@
+apiVersion: novari.no/v1alpha1
+kind: FlaisAuthentication
+metadata:
+    name: my-app
+    namespace: default
+spec:
+    realm: fint
+    ingress:
+        - host: myapp.example.com
+          path: beta/my-org
+    wonderwall:
+        upstreamPort: 3000
+        autoLogin: true
+        scope:
+            - profile
+            - organization
+        logLevel: info

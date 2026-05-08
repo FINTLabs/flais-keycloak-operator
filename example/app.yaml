@@ -1,8 +1,0 @@
-apiVersion: novari.no/v1alpha1
-kind: Application
-metadata:
-  name: beta-fint-samtykke-frontend-v2
-spec:
-  hostname: samtykke.novari.no
-  basePath: beta/rogfk-no
-  realm: fint
