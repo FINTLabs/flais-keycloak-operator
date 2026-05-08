@@ -67,7 +67,7 @@ tasks.register<GenerateCrdsTask>("generateCrds") {
     includePackages.set(listOf("no.novari.application.api"))
 
     targetDirectory.set(
-        layout.projectDirectory.dir("charts/flais-keycloak-operator-crd/charts/crds/templates")
+        layout.projectDirectory.dir("charts/flais-keycloak-operator-crd/charts/crds/templates"),
     )
 
     dependsOn(tasks.named("classes"))
