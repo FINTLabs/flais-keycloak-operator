@@ -25,25 +25,25 @@ The operator does **not** mutate application Deployments, inject sidecars, or cr
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `realm` | string | yes | Keycloak realm to manage the OIDC client in. Currently validated to `fint`. |
-| `ingress` | array | no | External ingress URLs for the application. Each item contains `host` and optional `path`. Used for Keycloak redirect URIs and `WONDERWALL_INGRESS`. |
-| `wonderwall` | object | yes | Wonderwall configuration written to the generated ConfigMap. |
+| `realm` | string | yes | Keycloak realm to manage the OIDC client in. Currently validated to `fint` |
+| `ingress` | array | no | External ingress URLs for the application. Each item contains `host` and optional `path`. Used for Keycloak redirect URIs and `WONDERWALL_INGRESS` |
+| `wonderwall` | object | yes | Wonderwall configuration written to the generated ConfigMap |
 
 ### `ingress[]`
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `host` | string | yes | External hostname, for example `app.example.com`. |
-| `path` | string | no | Path prefix below the host. Leave empty for the host root. |
+| `host` | string | yes | External hostname, for example `app.example.com` |
+| `path` | string | no | Path prefix below the host. Leave empty for the host root |
 
 ### `wonderwall`
 
 | Field | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `upstreamPort` | int | yes | `0` | Port where the application listens. Written as `WONDERWALL_UPSTREAM_PORT`. |
-| `autoLogin` | boolean | no | `true` | Written as `WONDERWALL_AUTO_LOGIN`. |
-| `scope` | string array | no | `["profile"]` | OIDC scopes written as comma-separated `WONDERWALL_OPENID_SCOPES`. Valid values are `profile` and `organization`; at most two values are allowed. |
-| `logLevel` | string | no | `info` | Valid values are `info` and `debug`. Written as `WONDERWALL_LOG_LEVEL`  |
+| `upstreamPort` | int | yes | `0` | Port where the application listens. Written as `WONDERWALL_UPSTREAM_PORT` |
+| `autoLogin` | boolean | no | `true` | Written as `WONDERWALL_AUTO_LOGIN` |
+| `scope` | string array | no | `["profile"]` | OIDC scopes written as comma-separated `WONDERWALL_OPENID_SCOPES`. Valid values are `profile` and `organization`; at most two values are allowed |
+| `logLevel` | string | no | `info` | Valid values are `info` and `debug`. Written as `WONDERWALL_LOG_LEVEL` |
 
 ### Example
 
@@ -102,13 +102,13 @@ Annotation:
 
 | Annotation | Description |
 | --- | --- |
-| `flais.novari.no/wonderwall-client-id` | Stable generated Keycloak client ID. The value is a UUID. |
+| `flais.novari.no/wonderwall-client-id` | Stable generated Keycloak client ID. The value is a UUID |
 
 Data:
 
 | Key | Description |
 | --- | --- |
-| `WONDERWALL_OPENID_CLIENT_SECRET` | Base64-encoded Keycloak client secret. |
+| `WONDERWALL_OPENID_CLIENT_SECRET` | Base64-encoded Keycloak client secret |
 
 ### ConfigMap
 
@@ -116,13 +116,13 @@ The ConfigMap contains Wonderwall environment variables:
 
 | Key | Value |
 | --- | --- |
-| `WONDERWALL_OPENID_CLIENT_ID` | Stable generated client ID from the Secret annotation. |
-| `WONDERWALL_OPENID_WELL_KNOWN_URL` | `<KEYCLOAK_BASE_URL>/realms/<realm>/.well-known/openid-configuration`. |
-| `WONDERWALL_INGRESS` | Comma-separated ingress URLs, for example `https://myapp.example.com/beta/my-org`. |
-| `WONDERWALL_UPSTREAM_PORT` | `spec.wonderwall.upstreamPort`. |
-| `WONDERWALL_BIND_ADDRESS` | `0.0.0.0:8080`. |
-| `WONDERWALL_AUTO_LOGIN` | `spec.wonderwall.autoLogin`. |
-| `WONDERWALL_OPENID_SCOPES` | Comma-separated `spec.wonderwall.scope`. |
+| `WONDERWALL_OPENID_CLIENT_ID` | Stable generated client ID from the Secret annotation |
+| `WONDERWALL_OPENID_WELL_KNOWN_URL` | `<KEYCLOAK_BASE_URL>/realms/<realm>/.well-known/openid-configuration` |
+| `WONDERWALL_INGRESS` | Comma-separated ingress URLs, for example `https://myapp.example.com/beta/my-org` |
+| `WONDERWALL_UPSTREAM_PORT` | `spec.wonderwall.upstreamPort` |
+| `WONDERWALL_BIND_ADDRESS` | `0.0.0.0:8080` |
+| `WONDERWALL_AUTO_LOGIN` | `spec.wonderwall.autoLogin` |
+| `WONDERWALL_OPENID_SCOPES` | Comma-separated `spec.wonderwall.scope` |
 
 ## Keycloak Client Configuration
 
@@ -130,19 +130,19 @@ The operator creates a confidential OIDC client in `spec.realm`.
 
 | Setting | Value |
 | --- | --- |
-| Client ID | Generated UUID stored in the Secret annotation. |
-| Name | `metadata.name` from the `FlaisAuthentication`. |
-| Protocol | `openid-connect`. |
-| Enabled | `true`. |
-| Public client | `false`. |
-| Standard flow | Enabled. |
-| Direct access grants | Disabled. |
-| Service accounts | Disabled. |
-| Full scope allowed | Disabled. |
-| PKCE challenge method | `S256`. |
-| Redirect URIs | One `https://<host>/<path>/*` entry per `spec.ingress` item. If `path` is empty, the redirect URI is `https://<host>/*`. |
-| Web origins | `+`. |
-| Post-logout redirect URIs | `+`. |
+| Client ID | Generated UUID stored in the Secret annotation |
+| Name | `metadata.name` from the `FlaisAuthentication` |
+| Protocol | `openid-connect` |
+| Enabled | `true` |
+| Public client | `false` |
+| Standard flow | Enabled |
+| Direct access grants | Disabled |
+| Service accounts | Disabled |
+| Full scope allowed | Disabled |
+| PKCE challenge method | `S256` |
+| Redirect URIs | One `https://<host>/<path>/*` entry per `spec.ingress` item. If `path` is empty, the redirect URI is `https://<host>/*` |
+| Web origins | `+` |
+| Post-logout redirect URIs | `+` |
 
 ## Installation
 
@@ -161,16 +161,16 @@ The operator reads the following environment variables at runtime.
 
 | Variable | Description |
 | --- | --- |
-| `KEYCLOAK_BASE_URL` | Base URL of the Keycloak instance. |
-| `KEYCLOAK_ADMIN_USERNAME` | Admin username. |
-| `KEYCLOAK_ADMIN_PASSWORD` | Admin password. |
+| `KEYCLOAK_BASE_URL` | Base URL of the Keycloak instance |
+| `KEYCLOAK_ADMIN_USERNAME` | Admin username |
+| `KEYCLOAK_ADMIN_PASSWORD` | Admin password |
 
 ### Optional
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `KEYCLOAK_ADMIN_REALM` | `master` | Realm used for admin API access. |
-| `KEYCLOAK_ADMIN_CLIENT_ID` | `admin-cli` | Client ID for admin API access. |
+| `KEYCLOAK_ADMIN_REALM` | `master` | Realm used for admin API access |
+| `KEYCLOAK_ADMIN_CLIENT_ID` | `admin-cli` | Client ID for admin API access |
 
 ## HTTP Endpoints
 
@@ -178,9 +178,9 @@ The operator exposes an HTTP server on port `8080`.
 
 | Endpoint | Description |
 | --- | --- |
-| `GET /metrics` | Prometheus metrics scrape endpoint. |
-| `GET /health` | Returns `200 OK` when the operator is running; otherwise `503 NOT OK`. |
-| `GET /ready` | Returns `200 READY` when the operator is running; otherwise `503 NOT READY`. |
+| `GET /metrics` | Prometheus metrics scrape endpoint |
+| `GET /health` | Returns `200 OK` when the operator is running; otherwise `503 NOT OK` |
+| `GET /ready` | Returns `200 READY` when the operator is running; otherwise `503 NOT READY` |
 
 These endpoints are used as the liveness and readiness probes in the Helm Deployment.
 
