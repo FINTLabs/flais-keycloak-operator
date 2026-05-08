@@ -1,127 +1,148 @@
 # flais-keycloak-operator
 
-A Kotlin-based Kubernetes operator that automatically wires application deployments to Keycloak by injecting a [Wonderwall](https://github.com/nais/wonderwall) authentication sidecar and provisioning the corresponding Keycloak OIDC client.
+A Kotlin-based Kubernetes operator that provisions Keycloak OIDC clients for `FlaisAuthentication` custom resources and exposes the generated Wonderwall configuration as Kubernetes resources.
 
 ## Overview
 
-The operator watches for `Application` custom resources. When one is created, it:
+The operator watches `FlaisAuthentication` custom resources in the `novari.no/v1alpha1` API group. For each resource, it:
 
-1. Provisions a Keycloak OIDC client for the application
-2. Injects a Wonderwall sidecar container into the matching Deployment
-3. Creates a Kubernetes Service that exposes the sidecar
+1. Creates or updates a Kubernetes Secret named `<resource-name>-wonderwall`
+2. Creates or updates a Kubernetes ConfigMap named `<resource-name>-wonderwall`
+3. Creates or updates a confidential Keycloak OIDC client in the configured realm
+4. Synchronizes the Keycloak client secret back into the Wonderwall Secret
 
-When the `Application` resource is deleted, the operator reverses the process — removing the sidecar from the Deployment and deleting the Keycloak client.
+When a `FlaisAuthentication` resource is deleted, the operator deletes the corresponding Keycloak client. The Kubernetes Secret and ConfigMap are owned by the `FlaisAuthentication` resource and are garbage-collected by Kubernetes.
 
-The operator does **not** own or manage the application Deployment itself. It augments an existing workload.
+The operator does **not** mutate application Deployments, inject sidecars, or create Services. Workloads that use Wonderwall should consume the generated Secret and ConfigMap themselves.
 
-## Custom Resource: `Application`
+## Custom Resource: `FlaisAuthentication`
 
 **API group/version:** `novari.no/v1alpha1`
+**Kind:** `FlaisAuthentication`
+**Scope:** Namespaced
 
 ### Spec
 
-| Field          | Type   | Required | Description                                                      |
-| -------------- | ------ | -------- | ---------------------------------------------------------------- |
-| `hostname`     | string | yes      | External hostname for the application (e.g. `myapp.example.com`) |
-| `basePath`     | string | yes      | Ingress path prefix (e.g. `beta/my-org`)                         |
-| `realm`        | string | yes      | Keycloak realm to manage the OIDC client in                      |
-| `upstreamPort` | int    | no       | Port the application container listens on (default: `3000`)      |
-| `scope`        | string | no       | OIDC scopes to request (default: `profile`)                      |
-| `logLevel`     | string | no       | Wonderwall log level (default: `info`)                           |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `realm` | string | yes | Keycloak realm to manage the OIDC client in. Currently validated to `fint`. |
+| `ingress` | array | no | External ingress URLs for the application. Each item contains `host` and optional `path`. Used for Keycloak redirect URIs and `WONDERWALL_INGRESS`. |
+| `wonderwall` | object | yes | Wonderwall configuration written to the generated ConfigMap. |
+
+### `ingress[]`
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `host` | string | yes | External hostname, for example `app.example.com`. |
+| `path` | string | no | Path prefix below the host. Leave empty for the host root. |
+
+### `wonderwall`
+
+| Field | Type | Required | Default | Description |
+| --- | --- | --- | --- | --- |
+| `upstreamPort` | int | yes | `0` | Port where the application listens. Written as `WONDERWALL_UPSTREAM_PORT`. |
+| `autoLogin` | boolean | no | `true` | Written as `WONDERWALL_AUTO_LOGIN`. |
+| `scope` | string array | no | `["profile"]` | OIDC scopes written as comma-separated `WONDERWALL_OPENID_SCOPES`. Valid values are `profile` and `organization`; at most two values are allowed. |
+| `logLevel` | string | no | `info` | Valid values are `info` and `debug`. Written as `WONDERWALL_LOG_LEVEL`  |
 
 ### Example
 
 ```yaml
 apiVersion: novari.no/v1alpha1
-kind: Application
+kind: FlaisAuthentication
 metadata:
   name: my-app
+  namespace: default
 spec:
-  hostname: myapp.example.com
-  basePath: beta/my-org
   realm: fint
-```
-
-The `Application` resource must have the same `name` and `namespace` as the Deployment it targets.
-
-### Matching Deployment
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: my-app # must match Application metadata.name
-  labels:
-    app: my-app
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: my-app
-  template:
-    metadata:
-      labels:
-        app: my-app
-    spec:
-      containers:
-        - name: app
-          image: my-image:latest
-          ports:
-            - name: app
-              containerPort: 3000
+  ingress:
+    - host: myapp.example.com
+      path: beta/my-org
+  wonderwall:
+    upstreamPort: 3000
+    autoLogin: true
+    scope:
+      - profile
+      - organization
+    logLevel: info
 ```
 
 ## Reconcile Flow
 
+```text
+FlaisAuthentication CR created or updated
+  │
+  ├─ 1. WonderwallSecretDR
+  │      Create/update <name>-wonderwall Secret and persist the generated client ID annotation
+  │
+  ├─ 2. WonderwallConfigMapDR  (depends on step 1)
+  │      Create/update <name>-wonderwall ConfigMap with Wonderwall environment variables
+  │
+  └─ 3. KeycloakClientDR       (depends on steps 1 and 2)
+         Create/update Keycloak OIDC client and sync its secret into the Kubernetes Secret
 ```
-Application CR created
-  │
-  ├─ 1. KeycloakClientDR
-  │      Create/update OIDC client in Keycloak
-  │
-  ├─ 2. WonderwallDeploymentDR  (depends on step 1)
-  │      Inject wonderwall sidecar into the existing Deployment
-  │
-  └─ 3. WonderwallServiceDR     (depends on step 2)
-         Create <app-name>-wonderwall Service pointing at port 8080
+
+## Generated Kubernetes Resources
+
+For a `FlaisAuthentication` named `my-app`, the operator creates resources named `my-app-wonderwall` in the same namespace.
+
+Both resources are labelled with:
+
+```yaml
+app.kubernetes.io/managed-by: flais-keycloak-operator
 ```
 
-### Keycloak client configuration
+Both resources also get an owner reference back to the `FlaisAuthentication` resource.
 
-The operator creates an OIDC client with:
+### Secret
 
-- `clientId` = `metadata.name`
-- Protocol: `openid-connect`
-- Public client: `false`
-- Standard flow: enabled
-- PKCE: `S256`
-- Redirect URIs: `https://<hostname>/<basePath>/*`
-- Web origins: `+`
-- Post-logout redirect URIs: `+`
+The Secret is an `Opaque` Secret. It stores the generated client ID as an annotation and, after the Keycloak client has been created, stores the Keycloak client secret as data.
 
-### Wonderwall sidecar
+Annotation:
 
-The injected sidecar container uses image `ghcr.io/nais/wonderwall` and binds to `0.0.0.0:8080`. It proxies traffic to `127.0.0.1:<upstreamPort>` (default `3000`).
+| Annotation | Description |
+| --- | --- |
+| `flais.novari.no/wonderwall-client-id` | Stable generated Keycloak client ID. The value is a UUID. |
 
-Key environment variables set on the sidecar:
+Data:
 
-| Variable                           | Value                                                               |
-| ---------------------------------- | ------------------------------------------------------------------- |
-| `WONDERWALL_OPENID_CLIENT_ID`      | `metadata.name`                                                     |
-| `WONDERWALL_OPENID_WELL_KNOWN_URL` | `http://<keycloak>/realms/<realm>/.well-known/openid-configuration` |
-| `WONDERWALL_INGRESS`               | `https://<hostname>/<basePath>`                                     |
-| `WONDERWALL_UPSTREAM_HOST`         | `127.0.0.1:<upstreamPort>`                                          |
-| `WONDERWALL_BIND_ADDRESS`          | `0.0.0.0:8080`                                                      |
-| `WONDERWALL_AUTO_LOGIN`            | `true`                                                              |
-| `WONDERWALL_OPENID_SCOPES`         | `profile,<scope>`                                                   |
+| Key | Description |
+| --- | --- |
+| `WONDERWALL_OPENID_CLIENT_SECRET` | Base64-encoded Keycloak client secret. |
 
-### Service
+### ConfigMap
 
-A Service named `<app-name>-wonderwall` is created in the same namespace, with:
+The ConfigMap contains Wonderwall environment variables:
 
-- Port `80` → targetPort `http` (the sidecar's `8080`)
-- Selector labels copied from the Deployment's `spec.selector.matchLabels`
-- Label `app.kubernetes.io/managed-by: application-operator`
+| Key | Value |
+| --- | --- |
+| `WONDERWALL_OPENID_CLIENT_ID` | Stable generated client ID from the Secret annotation. |
+| `WONDERWALL_OPENID_WELL_KNOWN_URL` | `<KEYCLOAK_BASE_URL>/realms/<realm>/.well-known/openid-configuration`. |
+| `WONDERWALL_INGRESS` | Comma-separated ingress URLs, for example `https://myapp.example.com/beta/my-org`. |
+| `WONDERWALL_UPSTREAM_PORT` | `spec.wonderwall.upstreamPort`. |
+| `WONDERWALL_BIND_ADDRESS` | `0.0.0.0:8080`. |
+| `WONDERWALL_AUTO_LOGIN` | `spec.wonderwall.autoLogin`. |
+| `WONDERWALL_OPENID_SCOPES` | Comma-separated `spec.wonderwall.scope`. |
+
+## Keycloak Client Configuration
+
+The operator creates a confidential OIDC client in `spec.realm`.
+
+| Setting | Value |
+| --- | --- |
+| Client ID | Generated UUID stored in the Secret annotation. |
+| Name | `metadata.name` from the `FlaisAuthentication`. |
+| Protocol | `openid-connect`. |
+| Enabled | `true`. |
+| Public client | `false`. |
+| Standard flow | Enabled. |
+| Direct access grants | Disabled. |
+| Service accounts | Disabled. |
+| Full scope allowed | Disabled. |
+| PKCE challenge method | `S256`. |
+| Redirect URIs | One `https://<host>/<path>/*` entry per `spec.ingress` item. If `path` is empty, the redirect URI is `https://<host>/*`. |
+| Web origins | `+`. |
+| Post-logout redirect URIs | `+`. |
 
 ## Installation
 
@@ -130,69 +151,38 @@ A Service named `<app-name>-wonderwall` is created in the same namespace, with:
 - Kubernetes cluster
 - Helm 3
 - A running Keycloak instance accessible from the operator pod
-
-### 1. Install CRDs
-
-```bash
-helm install flais-keycloak-operator-crd \
-  oci://ghcr.io/fintlabs/charts/flais-keycloak-operator-crd
-```
-
-### 2. Install the operator
-
-```bash
-helm install flais-keycloak-operator \
-  oci://ghcr.io/fintlabs/charts/flais-keycloak-operator \
-  --set keycloak.baseUrl=https://keycloak.example.com \
-  --set keycloak.adminUsername=admin \
-  --set keycloak.adminPassword=<secret>
-```
-
-### Helm values
-
-| Value                       | Default                            | Description                  |
-| --------------------------- | ---------------------------------- | ---------------------------- |
-| `image.repository`          | `ghcr.io/fintlabs/ssoerator-2-poc` | Operator image               |
-| `image.pullPolicy`          | `IfNotPresent`                     | Image pull policy            |
-| `keycloak.baseUrl`          | `http://172.17.0.1:8080`           | Keycloak base URL            |
-| `keycloak.adminUsername`    | `admin`                            | Keycloak admin username      |
-| `keycloak.adminPassword`    | `admin`                            | Keycloak admin password      |
-| `wonderwall.image`          | `ghcr.io/nais/wonderwall:...`      | Wonderwall image to inject   |
-| `wonderwall.logLevel`       | `info`                             | Default Wonderwall log level |
-| `resources.limits.memory`   | `512Mi`                            | Operator memory limit        |
-| `resources.requests.cpu`    | `200m`                             | Operator CPU request         |
-| `resources.requests.memory` | `256Mi`                            | Operator memory request      |
+- Keycloak admin credentials that can create, update, and delete clients in the configured realm
 
 ## Environment Variables
 
-The operator reads the following environment variables at runtime (injected by the Helm chart):
+The operator reads the following environment variables at runtime.
 
 ### Required
 
-| Variable                  | Description                       |
-| ------------------------- | --------------------------------- |
-| `KEYCLOAK_BASE_URL`       | Base URL of the Keycloak instance |
-| `KEYCLOAK_ADMIN_USERNAME` | Admin username                    |
-| `KEYCLOAK_ADMIN_PASSWORD` | Admin password                    |
+| Variable | Description |
+| --- | --- |
+| `KEYCLOAK_BASE_URL` | Base URL of the Keycloak instance. |
+| `KEYCLOAK_ADMIN_USERNAME` | Admin username. |
+| `KEYCLOAK_ADMIN_PASSWORD` | Admin password. |
 
 ### Optional
 
-| Variable                   | Default     | Description                     |
-| -------------------------- | ----------- | ------------------------------- |
-| `KEYCLOAK_ADMIN_REALM`     | `master`    | Realm used for admin API access |
-| `KEYCLOAK_ADMIN_CLIENT_ID` | `admin-cli` | Client ID for admin API access  |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `KEYCLOAK_ADMIN_REALM` | `master` | Realm used for admin API access. |
+| `KEYCLOAK_ADMIN_CLIENT_ID` | `admin-cli` | Client ID for admin API access. |
 
 ## HTTP Endpoints
 
-The operator exposes an HTTP server on port `8080`:
+The operator exposes an HTTP server on port `8080`.
 
-| Endpoint       | Description                                      |
-| -------------- | ------------------------------------------------ |
-| `GET /metrics` | Prometheus metrics scrape endpoint               |
-| `GET /health`  | Returns `200 OK` when the operator is running    |
-| `GET /ready`   | Returns `200 READY` when the operator is running |
+| Endpoint | Description |
+| --- | --- |
+| `GET /metrics` | Prometheus metrics scrape endpoint. |
+| `GET /health` | Returns `200 OK` when the operator is running; otherwise `503 NOT OK`. |
+| `GET /ready` | Returns `200 READY` when the operator is running; otherwise `503 NOT READY`. |
 
-These are used as the liveness and readiness probes in the Helm deployment.
+These endpoints are used as the liveness and readiness probes in the Helm Deployment.
 
 ## Local Development
 
@@ -200,20 +190,23 @@ These are used as the liveness and readiness probes in the Helm deployment.
 
 - JDK 21+
 - Docker / Docker Compose
-- A local Keycloak instance (provided via Docker Compose)
 
-### Start the local stack
-
-```bash
-docker compose -f docker-compose.dev.yaml up
-```
-
-This starts Keycloak pre-configured with a `fint` realm.
-
-### Run the operator locally
+### Start the local development environment
 
 ```bash
 ./gradlew runDev
+```
+
+`runDev` starts the Docker Compose services for Keycloak and the local k3s cluster, builds the operator image, imports it into k3s, installs the CRD chart, and installs the operator chart.
+
+The local Keycloak instance is imported with the `fint` realm from `config/kc/fint-realm.json`.
+
+The local kubeconfig can be found in `data/kubeconfig/kubeconfig.yaml` - See [Help](help.md) for examples on using
+
+### Stop the local development environment
+
+```bash
+./gradlew stopDev
 ```
 
 ### Run tests
@@ -222,40 +215,10 @@ This starts Keycloak pre-configured with a `fint` realm.
 ./gradlew test
 ```
 
-The test compose file (`docker-compose.test.yaml`) is used automatically during integration tests.
-
-### Generate CRDs
+### Run integration tests
 
 ```bash
-./gradlew generateCrds
+./gradlew integrationTest
 ```
 
-Generated CRD manifests are written to `charts/flais-keycloak-operator-crd/`.
-
-### Install to a local cluster
-
-```bash
-./gradlew installOperator
-```
-
-## Technology Stack
-
-| Component            | Library                       |
-| -------------------- | ----------------------------- |
-| Language             | Kotlin 2.x                    |
-| Kubernetes client    | Fabric8 Kubernetes Client 7.x |
-| Operator framework   | Java Operator SDK (JOSDK)     |
-| Dependency injection | Koin 4.x                      |
-| HTTP server          | Http4k + Jetty                |
-| Metrics              | Micrometer + Prometheus       |
-| CRD generation       | Fabric8 CRD Generator v2      |
-
-## Architecture Notes
-
-The operator introduces a thin layer on top of JOSDK to support Koin-managed dependent resources:
-
-- `@Workflow` / `@Dependent` / `@DependentRef` — custom annotations that declare the dependency graph on reconciler classes
-- `KoinDependentResourceFactory` — resolves dependent resource instances from the Koin container
-- `OperatorConfiguration` — translates the annotations into JOSDK `DependentResourceSpec`s at startup, wiring ready conditions and reconcile conditions automatically
-
-This keeps reconciler classes compact while allowing dependent resources to use constructor injection.
+The integration test suite builds and saves the operator image, starts Keycloak and k3s with Testcontainers, installs the operator, and verifies the generated Kubernetes and Keycloak resources.
