@@ -14,10 +14,11 @@ import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
-import no.novari.application.applicationReconcilerModule
-import no.novari.operator.OperatorConfigHandler
-import no.novari.operator.OperatorConfiguration
-import no.novari.operator.OperatorPostConfigHandler
+import no.novari.keycloak.keycloakClientModule
+import no.novari.kubernetes.operator.OperatorConfigHandler
+import no.novari.kubernetes.operator.OperatorConfiguration
+import no.novari.kubernetes.operator.OperatorPostConfigHandler
+import no.novari.operator.client.clientReconcilerModule
 import org.http4k.core.HttpHandler
 import org.http4k.core.Method
 import org.http4k.core.Response
@@ -29,11 +30,15 @@ import org.http4k.server.asServer
 import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import org.koin.mp.KoinPlatform.getKoin
+import org.slf4j.MDC
+import java.io.File
 
 private const val PORT = 8080
 
 fun main() {
-    startKoin { modules(applicationReconcilerModule(), baseModule) }
+    configureLogging()
+
+    startKoin { modules(keycloakClientModule(), clientReconcilerModule(), baseModule) }
     startHttpServer()
     startOperator()
 }
@@ -103,4 +108,8 @@ fun startOperator() {
     val operator = getKoin().get<Operator>()
     Runtime.getRuntime().addShutdownHook(Thread { operator.stop() })
     operator.start()
+}
+
+fun configureLogging() {
+    MDC.put("flais.env", OperatorConfig.env)
 }
