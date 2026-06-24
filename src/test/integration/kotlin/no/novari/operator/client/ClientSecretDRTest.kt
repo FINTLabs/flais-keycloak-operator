@@ -5,7 +5,6 @@ import io.fabric8.kubernetes.client.KubernetesClient
 import no.novari.environment.OperatorEnvironment
 import no.novari.environment.OperatorEnvironmentExtension
 import no.novari.fixture.IntegrationTestSupport
-import no.novari.keycloak.KeycloakClientNameGenerator
 import no.novari.operator.MANAGED_BY_APPLICATION_LABEL_KEY
 import no.novari.operator.MANAGED_BY_APPLICATION_LABEL_VALUE
 import no.novari.operator.client.api.v1alpha1.FlaisAuthenticationSpec
@@ -19,6 +18,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import java.time.Duration
 import java.util.Base64
+import java.util.UUID
 
 @ExtendWith(OperatorEnvironmentExtension::class)
 class ClientSecretDRTest {
@@ -32,7 +32,6 @@ class ClientSecretDRTest {
         val secretName = "$name-client-data"
         val clientURI = "https://$name.apps.example.no"
         val redirectURI = "$clientURI/oauth/callback"
-        val expectedClientId = expectedClientId(name)
         val expectedWellKnownUrl = "${env.keycloakClusterUrl()}/realms/$REALM/.well-known/openid-configuration"
 
         support.applyApplication(
@@ -65,7 +64,7 @@ class ClientSecretDRTest {
                         .single()
                         .name,
                 )
-                assertEquals(expectedClientId, secret.decodedData("KEYCLOAK_CLIENT_ID"))
+                assertValidUuid(secret.decodedData("KEYCLOAK_CLIENT_ID"))
                 assertTrue(secret.decodedData("KEYCLOAK_CLIENT_SECRET").isNotBlank())
                 assertEquals(redirectURI, secret.decodedData("KEYCLOAK_REDIRECT_URI"))
                 assertEquals(
@@ -126,12 +125,9 @@ class ClientSecretDRTest {
         return String(Base64.getDecoder().decode(encoded))
     }
 
-    private fun expectedClientId(name: String): String =
-        KeycloakClientNameGenerator.generate(
-            team = "team-platform",
-            name = name,
-            orgId = "novari_no",
-        )
+    private fun assertValidUuid(value: String) {
+        UUID.fromString(value)
+    }
 
     private companion object {
         private const val REALM = "fint"

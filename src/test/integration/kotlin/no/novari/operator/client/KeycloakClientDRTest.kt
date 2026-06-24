@@ -24,11 +24,11 @@ import no.novari.operator.client.api.v1alpha1.FlaisAuthenticationSpec
 import org.awaitility.Awaitility.await
 import org.awaitility.kotlin.withPollInterval
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.keycloak.representations.idm.ClientRepresentation
 import java.time.Duration
+import java.util.UUID
 
 @ExtendWith(OperatorEnvironmentExtension::class)
 class KeycloakClientDRTest {
@@ -50,7 +50,7 @@ class KeycloakClientDRTest {
                 "$clientURI/logout",
                 "$clientURI/signed-out",
             )
-        val expectedClientId = expectedClientId(name)
+        val expectedClientName = expectedClientName(name)
 
         support.applyApplication(
             name = name,
@@ -79,14 +79,17 @@ class KeycloakClientDRTest {
                             ?.conditions
                             ?.single { condition -> condition.type == "Ready" }
 
-                    assertEquals(expectedClientId, resource.status?.clientID)
+                    val clientId = resource.status?.clientID ?: error("Expected generated client ID")
+                    assertValidUuid(clientId)
                     assertEquals("True", readyCondition?.status)
 
-                    val clientRepresentation = KcAdminClient.getClientRepresentation(realmResource, expectedClientId)
-                    assertNotNull(clientRepresentation)
+                    val clientRepresentation =
+                        KcAdminClient.getClientRepresentation(realmResource, clientId)
+                            ?: error("Expected Keycloak client '$clientId'")
                     assertClient(
-                        clientRepresentation = clientRepresentation!!,
-                        clientId = expectedClientId,
+                        clientRepresentation = clientRepresentation,
+                        clientId = clientId,
+                        name = expectedClientName,
                         clientURI = clientURI,
                         redirectURIs = redirectURIs,
                         postLogoutRedirectURIs = postLogoutRedirectURIs,
@@ -107,7 +110,8 @@ class KeycloakClientDRTest {
         val name = support.uniqueName("keycloak-update")
         val initialClientURI = "https://$name.initial.example.no"
         val updatedClientURI = "https://$name.updated.example.no"
-        val expectedClientId = expectedClientId(name)
+        val expectedClientName = expectedClientName(name)
+        var createdClientId: String? = null
 
         support.applyApplication(
             name = name,
@@ -127,11 +131,18 @@ class KeycloakClientDRTest {
                 .withPollInterval(Duration.ofSeconds(1))
                 .atMost(Duration.ofSeconds(90))
                 .untilAsserted {
-                    val clientRepresentation = KcAdminClient.getClientRepresentation(realmResource, expectedClientId)
-                    assertNotNull(clientRepresentation)
-                    assertEquals(setOf("$initialClientURI/callback"), clientRepresentation!!.redirectUris.orEmpty().toSet())
+                    val resource = getFlaisAuthentication(kubernetesClient, name)
+                    val clientId = resource.status?.clientID ?: error("Expected generated client ID")
+                    assertValidUuid(clientId)
+                    createdClientId = clientId
+
+                    val clientRepresentation =
+                        KcAdminClient.getClientRepresentation(realmResource, clientId)
+                            ?: error("Expected Keycloak client '$clientId'")
+                    assertEquals(setOf("$initialClientURI/callback"), clientRepresentation.redirectUris.orEmpty().toSet())
                 }
 
+            val clientId = createdClientId ?: error("Expected generated client ID")
             val updatedRedirectURIs =
                 listOf(
                     "$updatedClientURI/oauth/callback",
@@ -157,11 +168,16 @@ class KeycloakClientDRTest {
                 .withPollInterval(Duration.ofSeconds(1))
                 .atMost(Duration.ofSeconds(90))
                 .untilAsserted {
-                    val clientRepresentation = KcAdminClient.getClientRepresentation(realmResource, expectedClientId)
-                    assertNotNull(clientRepresentation)
+                    val resource = getFlaisAuthentication(kubernetesClient, name)
+                    assertEquals(clientId, resource.status?.clientID)
+
+                    val clientRepresentation =
+                        KcAdminClient.getClientRepresentation(realmResource, clientId)
+                            ?: error("Expected Keycloak client '$clientId'")
                     assertClient(
-                        clientRepresentation = clientRepresentation!!,
-                        clientId = expectedClientId,
+                        clientRepresentation = clientRepresentation,
+                        clientId = clientId,
+                        name = expectedClientName,
                         clientURI = updatedClientURI,
                         redirectURIs = updatedRedirectURIs,
                         postLogoutRedirectURIs = updatedPostLogoutRedirectURIs,
@@ -176,6 +192,7 @@ class KeycloakClientDRTest {
     private fun assertClient(
         clientRepresentation: ClientRepresentation,
         clientId: String,
+        name: String,
         clientURI: String,
         redirectURIs: List<String>,
         postLogoutRedirectURIs: List<String>,
@@ -184,7 +201,7 @@ class KeycloakClientDRTest {
         sessionIdleTimeout: Int,
     ) {
         assertEquals(clientId, clientRepresentation.clientId)
-        assertEquals(clientId, clientRepresentation.name)
+        assertEquals(name, clientRepresentation.name)
         assertEquals(KEYCLOAK_CLIENT_PROTOCOL, clientRepresentation.protocol)
         assertEquals(KEYCLOAK_CLIENT_ENABLED, clientRepresentation.isEnabled)
         assertEquals(KEYCLOAK_CLIENT_PUBLIC, clientRepresentation.isPublicClient)
@@ -213,7 +230,11 @@ class KeycloakClientDRTest {
             .withName(name)
             .get()
 
-    private fun expectedClientId(name: String): String =
+    private fun assertValidUuid(value: String) {
+        UUID.fromString(value)
+    }
+
+    private fun expectedClientName(name: String): String =
         KeycloakClientNameGenerator.generate(
             team = "team-platform",
             name = name,

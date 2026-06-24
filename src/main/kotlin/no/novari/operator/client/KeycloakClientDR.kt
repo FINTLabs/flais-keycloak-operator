@@ -14,6 +14,7 @@ import no.novari.keycloak.clientRepresentation
 import no.novari.operator.client.api.v1alpha1.FlaisAuthentication
 import org.keycloak.representations.idm.ClientRepresentation
 import org.koin.core.component.KoinComponent
+import java.util.UUID
 import kotlin.time.Duration.Companion.days
 import kotlin.time.toJavaDuration
 
@@ -24,8 +25,8 @@ class KeycloakClientDR(
     ),
     Creator<ClientRepresentation, FlaisAuthentication>,
     Updater<ClientRepresentation, FlaisAuthentication>,
-    Deleter<FlaisAuthentication>, KoinComponent {
-
+    Deleter<FlaisAuthentication>,
+    KoinComponent {
     override fun name(): String = "keycloak-client"
 
     init {
@@ -61,14 +62,17 @@ class KeycloakClientDR(
         desired: ClientRepresentation,
         primary: FlaisAuthentication,
         context: Context<FlaisAuthentication>,
-    ): ClientRepresentation = keycloakClientService.createClient(primary.spec.realm, desired)
+    ): ClientRepresentation {
+        desired.clientId = UUID.randomUUID().toString()
+        return keycloakClientService.createClient(primary.spec.realm, desired)
+    }
 
     override fun update(
         actual: ClientRepresentation,
         desired: ClientRepresentation,
         primary: FlaisAuthentication,
         context: Context<FlaisAuthentication>,
-    ): ClientRepresentation = keycloakClientService.updateClient(primary.spec.realm, actual.id, desired)
+    ): ClientRepresentation = keycloakClientService.updateClient(primary.spec.realm, actual.clientId, desired)
 
     override fun match(
         actual: ClientRepresentation,
