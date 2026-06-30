@@ -31,7 +31,6 @@ import org.koin.core.context.startKoin
 import org.koin.dsl.module
 import org.koin.mp.KoinPlatform.getKoin
 import org.slf4j.MDC
-import java.io.File
 
 private const val PORT = 8080
 
