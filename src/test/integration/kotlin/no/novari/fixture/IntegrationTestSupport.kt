@@ -2,8 +2,10 @@ package no.novari.fixture
 
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
-import no.novari.application.api.v1alpha1.FlaisAuthentication
-import no.novari.application.api.v1alpha1.FlaisAuthenticationSpec
+import no.novari.operator.ORG_ID
+import no.novari.operator.TEAM
+import no.novari.operator.client.api.v1alpha1.FlaisAuthentication
+import no.novari.operator.client.api.v1alpha1.FlaisAuthenticationSpec
 import java.util.UUID
 
 class IntegrationTestSupport(
@@ -14,13 +16,17 @@ class IntegrationTestSupport(
         spec: FlaisAuthenticationSpec,
     ): FlaisAuthentication {
         return kubernetesClient
-            .resources(FlaisAuthentication::class.java)
             .resource(
                 FlaisAuthentication().apply {
                     metadata =
                         ObjectMetaBuilder()
                             .withName(name)
-                            .build()
+                            .withLabels<String, String>(
+                                mapOf(
+                                    TEAM to "team-platform",
+                                    ORG_ID to "novari_no",
+                                ),
+                            ).build()
                     this.spec = spec
                 },
             ).serverSideApply()

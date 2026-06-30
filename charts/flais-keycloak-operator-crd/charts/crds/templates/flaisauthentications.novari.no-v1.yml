@@ -21,50 +21,69 @@ spec:
         properties:
           spec:
             properties:
-              ingress:
+              accessTokenLifetime:
+                type: "integer"
+              clientURI:
+                type: "string"
+              postLogoutRedirectURIs:
                 items:
-                  properties:
-                    host:
-                      type: "string"
-                    path:
-                      type: "string"
-                  required:
-                  - "host"
-                  type: "object"
+                  type: "string"
                 type: "array"
               realm:
                 type: "string"
                 x-kubernetes-validations:
                 - message: "Invalid realm"
                   rule: "self in ['fint']"
-              wonderwall:
-                properties:
-                  autoLogin:
-                    type: "boolean"
-                  logLevel:
-                    type: "string"
-                    x-kubernetes-validations:
-                    - message: "Invalid logLevel, must be one of info, debug"
-                      rule: "self in ['info', 'debug']"
-                  scope:
-                    items:
-                      type: "string"
-                    maxItems: 2
-                    type: "array"
-                    x-kubernetes-validations:
-                    - message: "Invalid scope, must be one of profile, organization"
-                      rule: "self.all(scope, scope in ['profile', 'organization'])"
-                  upstreamPort:
-                    type: "integer"
-                required:
-                - "upstreamPort"
-                type: "object"
+                - message: "Realm is immutable"
+                  rule: "self == oldSelf"
+              redirectURIs:
+                items:
+                  type: "string"
+                maxItems: 10
+                minItems: 1
+                type: "array"
+              secretName:
+                type: "string"
+              sessionIdleTimeout:
+                type: "integer"
+              sessionLifetime:
+                type: "integer"
             required:
+            - "clientURI"
             - "realm"
-            - "wonderwall"
+            - "redirectURIs"
             type: "object"
           status:
+            properties:
+              clientID:
+                type: "string"
+              conditions:
+                items:
+                  properties:
+                    lastTransitionTime:
+                      type: "string"
+                    message:
+                      type: "string"
+                    observedGeneration:
+                      type: "integer"
+                    reason:
+                      type: "string"
+                    status:
+                      type: "string"
+                    type:
+                      type: "string"
+                  type: "object"
+                type: "array"
+              observedGeneration:
+                type: "integer"
+              synchronizationHash:
+                type: "string"
+              synchronizationTime:
+                format: "date-time"
+                type: "string"
             type: "object"
         type: "object"
     served: true
     storage: true
+    subresources:
+      status: {}

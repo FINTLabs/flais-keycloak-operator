@@ -44,6 +44,7 @@ dependencies {
     testImplementation(libs.bundles.junit)
     testImplementation(libs.bundles.testcontainers)
     testImplementation(libs.bundles.koin)
+    testImplementation(libs.mockk)
 
     testRuntimeOnly(libs.bundles.junit)
     testRuntimeOnly(libs.slf4j.simple)
@@ -64,7 +65,7 @@ tasks.register<GenerateCrdsTask>("generateCrds") {
     compileClasspath.from(mainSourceSet.map { it.compileClasspath })
     outputClassesDirs.from(mainSourceSet.map { it.output.classesDirs })
 
-    includePackages.set(listOf("no.novari.application.api"))
+    includePackages.set(listOf("no.novari.operator.client.api"))
 
     targetDirectory.set(
         layout.projectDirectory.dir("charts/flais-keycloak-operator-crd/charts/crds/templates"),

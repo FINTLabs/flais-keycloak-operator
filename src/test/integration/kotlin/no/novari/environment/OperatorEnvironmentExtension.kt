@@ -5,7 +5,7 @@ import io.fabric8.kubernetes.client.Config
 import io.fabric8.kubernetes.client.ConfigBuilder
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientBuilder
-import no.novari.client.HelmClient
+import no.novari.keycloak.client.HelmClient
 import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.ExtensionConfigurationException
@@ -80,7 +80,10 @@ class OperatorEnvironmentExtension :
                         "image.tag" to System.getProperty("operator.image").substringAfterLast(":"),
                         "image.pullPolicy" to "Never",
                         "keycloak.baseUrl" to env.keycloakClusterUrl(),
-                        "keycloak.wellKnownBaseUrl" to env.keycloakClusterUrl(),
+                        "extraEnv[0].name" to "KEYCLOAK_CLIENT_SECRET",
+                        "extraEnv[0].value" to "A6GJgdzUXcCmkkRwQzlvEY5CGSOhYvV3",
+                        "extraEnv[1].name" to "ENV",
+                        "extraEnv[1].value" to "test",
                     ),
             )
         }
