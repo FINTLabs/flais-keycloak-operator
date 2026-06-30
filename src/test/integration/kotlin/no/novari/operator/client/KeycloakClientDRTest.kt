@@ -30,6 +30,8 @@ import org.keycloak.representations.idm.ClientRepresentation
 import java.time.Duration
 import java.util.UUID
 
+private const val REALM = "fint"
+
 @ExtendWith(OperatorEnvironmentExtension::class)
 class KeycloakClientDRTest {
     @Test
@@ -240,8 +242,4 @@ class KeycloakClientDRTest {
             name = name,
             orgId = "novari_no",
         )
-
-    private companion object {
-        private const val REALM = "fint"
-    }
 }

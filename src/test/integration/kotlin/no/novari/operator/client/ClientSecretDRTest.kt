@@ -20,6 +20,8 @@ import java.time.Duration
 import java.util.Base64
 import java.util.UUID
 
+private const val REALM = "fint"
+
 @ExtendWith(OperatorEnvironmentExtension::class)
 class ClientSecretDRTest {
     @Test
@@ -127,9 +129,5 @@ class ClientSecretDRTest {
 
     private fun assertValidUuid(value: String) {
         UUID.fromString(value)
-    }
-
-    private companion object {
-        private const val REALM = "fint"
     }
 }
