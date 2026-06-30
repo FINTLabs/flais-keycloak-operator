@@ -44,6 +44,7 @@ dependencies {
     testImplementation(libs.bundles.junit)
     testImplementation(libs.bundles.testcontainers)
     testImplementation(libs.bundles.koin)
+    testImplementation(libs.mockk)
 
     testRuntimeOnly(libs.bundles.junit)
     testRuntimeOnly(libs.slf4j.simple)
