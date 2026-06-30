@@ -1,5 +1,10 @@
 package no.novari.keycloak
 
+import no.novari.keycloak.api.model.KEYCLOAK_ACCESS_TOKEN_LIFESPAN_ATTRIBUTE
+import no.novari.keycloak.api.model.KEYCLOAK_PKCE_CODE_CHALLENGE_METHOD_ATTRIBUTE
+import no.novari.keycloak.api.model.KEYCLOAK_POST_LOGOUT_REDIRECT_URIS_ATTRIBUTE
+import no.novari.keycloak.api.model.KEYCLOAK_SESSION_IDLE_TIMEOUT_ATTRIBUTE
+import no.novari.keycloak.api.model.KEYCLOAK_SESSION_LIFESPAN_ATTRIBUTE
 import org.keycloak.representations.idm.ClientRepresentation
 
 object ClientRepresentationComparator {

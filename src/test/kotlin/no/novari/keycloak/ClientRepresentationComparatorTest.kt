@@ -1,5 +1,19 @@
 package no.novari.keycloak
 
+import no.novari.keycloak.api.model.KEYCLOAK_ACCESS_TOKEN_LIFESPAN_ATTRIBUTE
+import no.novari.keycloak.api.model.KEYCLOAK_CLIENT_DIRECT_ACCESS_GRANTS_ENABLED
+import no.novari.keycloak.api.model.KEYCLOAK_CLIENT_ENABLED
+import no.novari.keycloak.api.model.KEYCLOAK_CLIENT_FULL_SCOPE_ALLOWED
+import no.novari.keycloak.api.model.KEYCLOAK_CLIENT_PROTOCOL
+import no.novari.keycloak.api.model.KEYCLOAK_CLIENT_PUBLIC
+import no.novari.keycloak.api.model.KEYCLOAK_CLIENT_SERVICE_ACCOUNTS_ENABLED
+import no.novari.keycloak.api.model.KEYCLOAK_CLIENT_STANDARD_FLOW_ENABLED
+import no.novari.keycloak.api.model.KEYCLOAK_PKCE_CODE_CHALLENGE_METHOD
+import no.novari.keycloak.api.model.KEYCLOAK_PKCE_CODE_CHALLENGE_METHOD_ATTRIBUTE
+import no.novari.keycloak.api.model.KEYCLOAK_POST_LOGOUT_REDIRECT_URIS
+import no.novari.keycloak.api.model.KEYCLOAK_POST_LOGOUT_REDIRECT_URIS_ATTRIBUTE
+import no.novari.keycloak.api.model.KEYCLOAK_SESSION_IDLE_TIMEOUT_ATTRIBUTE
+import no.novari.keycloak.api.model.KEYCLOAK_SESSION_LIFESPAN_ATTRIBUTE
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
