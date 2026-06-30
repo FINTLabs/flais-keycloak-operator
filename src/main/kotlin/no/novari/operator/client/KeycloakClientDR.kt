@@ -10,7 +10,7 @@ import io.javaoperatorsdk.operator.processing.dependent.external.PerResourcePoll
 import no.novari.keycloak.ClientRepresentationComparator
 import no.novari.keycloak.KeycloakClientNameGenerator
 import no.novari.keycloak.KeycloakClientService
-import no.novari.keycloak.clientRepresentation
+import no.novari.keycloak.api.model.clientRepresentation
 import no.novari.operator.client.api.v1alpha1.FlaisAuthentication
 import org.keycloak.representations.idm.ClientRepresentation
 import org.koin.core.component.KoinComponent

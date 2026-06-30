@@ -1,4 +1,4 @@
-package no.novari.keycloak
+package no.novari.keycloak.api.model
 
 import no.novari.keycloak.api.annotation.KeycloakDslMarker
 import org.keycloak.representations.idm.ClientRepresentation
@@ -86,47 +86,5 @@ class ClientRepresentationDsl {
                     KEYCLOAK_SESSION_IDLE_TIMEOUT_ATTRIBUTE to sessionIdleTimeout?.toString(),
                 ).filterValues { it != null }
         }
-    }
-}
-
-@KeycloakDslMarker
-class WebOriginsDsl(
-    private val values: MutableList<String>,
-) {
-    fun sameOrigin() {
-        values += KEYCLOAK_WEB_ORIGIN_SAME_ORIGIN
-    }
-
-    fun origin(value: String) {
-        values += value
-    }
-
-    fun origins(vararg values: String) {
-        this.values += values
-    }
-
-    operator fun String.unaryPlus() {
-        origin(this)
-    }
-}
-
-@KeycloakDslMarker
-class PostLogoutRedirectUrisDsl(
-    private val values: MutableList<String>,
-) {
-    fun sameAsRedirectUris() {
-        values += KEYCLOAK_POST_LOGOUT_REDIRECT_URIS
-    }
-
-    fun uri(value: String) {
-        values += value
-    }
-
-    fun uris(vararg values: String) {
-        this.values += values
-    }
-
-    operator fun String.unaryPlus() {
-        uri(this)
     }
 }
