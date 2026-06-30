@@ -18,9 +18,9 @@ import no.novari.kubernetes.operator.workflow.DependentRef
 import no.novari.kubernetes.operator.workflow.Workflow
 import no.novari.operator.client.api.v1alpha1.FlaisAuthentication
 import no.novari.operator.client.api.v1alpha1.FlaisAuthenticationStatus
-import no.novari.operator.client.api.v1alpha1.clone
 import no.novari.operator.client.api.v1alpha1.generation
 import no.novari.operator.client.api.v1alpha1.resourceHash
+import no.novari.operator.client.api.v1alpha1.withStatusPatch
 import no.novari.operator.utils.withLoggingContext
 import org.keycloak.representations.idm.ClientRepresentation
 import java.time.Instant
@@ -48,31 +48,30 @@ class ClientReconciler : Reconciler<FlaisAuthentication> {
         withLoggingContext(loggingContext(resource)) {
             prepare(resource, context)
 
-            val result = context.managedWorkflowAndDependentResourceContext().reconcileManagedWorkflow()
             val client = context.getRequiredSecondaryResource<ClientRepresentation>()
+            val result = context.managedWorkflowAndDependentResourceContext().reconcileManagedWorkflow()
             if (result.allDependentResourcesReady()) {
                 UpdateControl.patchStatus(
-                    resource.clone().apply {
-                        status =
-                            FlaisAuthenticationStatus(
-                                clientID = client.clientId,
-                                synchronizationHash = resource.resourceHash(),
-                                synchronizationTime = Instant.now(),
-                            ).withConditions(
-                                readyCondition(
-                                    ConditionStatus.True,
-                                    "Synchronized",
-                                    "Resource is up-to-date",
-                                    resource.generation(),
-                                ),
-                                errorCondition(
-                                    ConditionStatus.False,
-                                    "Synchronized",
-                                    "Processing completed without errors",
-                                    resource.generation(),
-                                ),
-                            )
-                    },
+                    resource.withStatusPatch(
+                        FlaisAuthenticationStatus(
+                            clientID = client.clientId,
+                            synchronizationHash = resource.resourceHash(),
+                            synchronizationTime = Instant.now(),
+                        ).withConditions(
+                            readyCondition(
+                                ConditionStatus.True,
+                                "Synchronized",
+                                "Resource is up-to-date",
+                                resource.generation(),
+                            ),
+                            errorCondition(
+                                ConditionStatus.False,
+                                "Synchronized",
+                                "Processing completed without errors",
+                                resource.generation(),
+                            ),
+                        ),
+                    ),
                 )
             } else {
                 UpdateControl.noUpdate()
@@ -93,17 +92,17 @@ class ClientReconciler : Reconciler<FlaisAuthentication> {
         context: Context<FlaisAuthentication>,
     ) {
         context.updateStatus(
-            resource.clone().apply {
-                status =
-                    resource.status.withCondition(
+            resource.withStatusPatch(
+                (resource.status ?: FlaisAuthenticationStatus())
+                    .withCondition(
                         readyCondition(
                             ConditionStatus.False,
                             "Processing",
                             "Started processing resource",
                             resource.generation(),
                         ),
-                    )
-            },
+                    ),
+            ),
         )
     }
 
@@ -121,17 +120,18 @@ class ClientReconciler : Reconciler<FlaisAuthentication> {
                 error.message
             } ?: "Unknown error"
 
-        return resource.clone().apply {
-            status =
-                resource.status.withCondition(
+        return resource.withStatusPatch(
+            (resource.status ?: FlaisAuthenticationStatus())
+                .copy(clientID = resource.keycloakClientId())
+                .withCondition(
                     errorCondition(
                         ConditionStatus.True,
                         "Failed",
                         message,
                         resource.generation(),
                     ),
-                )
-        }
+                ),
+        )
     }
 
     private fun loggingContext(resource: FlaisAuthentication): Map<String, String> =

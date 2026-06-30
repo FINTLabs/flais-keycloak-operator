@@ -19,13 +19,14 @@ class FlaisAuthentication :
     }
 }
 
-fun FlaisAuthentication.clone(): FlaisAuthentication {
+fun FlaisAuthentication.withStatusPatch(status: FlaisAuthenticationStatus): FlaisAuthentication {
     return FlaisAuthentication().apply {
         metadata =
             metadata {
-                name(this@clone.metadata.name)
-                namespace(this@clone.metadata.namespace)
+                name(this@withStatusPatch.metadata.name)
+                namespace(this@withStatusPatch.metadata.namespace)
             }
+        this.status = status
     }
 }
 
