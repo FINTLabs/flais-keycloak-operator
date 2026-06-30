@@ -81,7 +81,8 @@ class KeycloakClientDRTest {
                             ?.conditions
                             ?.single { condition -> condition.type == "Ready" }
 
-                    val clientId = resource.status?.clientID ?: error("Expected generated client ID")
+                    val clientId = resource.status?.clientID ?: error("Expected client ID")
+                    assertEquals(resource.metadata.uid, clientId)
                     assertValidUuid(clientId)
                     assertEquals("True", readyCondition?.status)
 
@@ -134,7 +135,8 @@ class KeycloakClientDRTest {
                 .atMost(Duration.ofSeconds(90))
                 .untilAsserted {
                     val resource = getFlaisAuthentication(kubernetesClient, name)
-                    val clientId = resource.status?.clientID ?: error("Expected generated client ID")
+                    val clientId = resource.status?.clientID ?: error("Expected client ID")
+                    assertEquals(resource.metadata.uid, clientId)
                     assertValidUuid(clientId)
                     createdClientId = clientId
 
@@ -144,7 +146,7 @@ class KeycloakClientDRTest {
                     assertEquals(setOf("$initialClientURI/callback"), clientRepresentation.redirectUris.orEmpty().toSet())
                 }
 
-            val clientId = createdClientId ?: error("Expected generated client ID")
+            val clientId = createdClientId ?: error("Expected client ID")
             val updatedRedirectURIs =
                 listOf(
                     "$updatedClientURI/oauth/callback",
@@ -171,6 +173,7 @@ class KeycloakClientDRTest {
                 .atMost(Duration.ofSeconds(90))
                 .untilAsserted {
                     val resource = getFlaisAuthentication(kubernetesClient, name)
+                    assertEquals(resource.metadata.uid, clientId)
                     assertEquals(clientId, resource.status?.clientID)
 
                     val clientRepresentation =

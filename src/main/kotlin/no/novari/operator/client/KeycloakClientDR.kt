@@ -12,9 +12,9 @@ import no.novari.keycloak.KeycloakClientNameGenerator
 import no.novari.keycloak.KeycloakClientService
 import no.novari.keycloak.api.model.clientRepresentation
 import no.novari.operator.client.api.v1alpha1.FlaisAuthentication
+import no.novari.operator.client.api.v1alpha1.keycloakClientId
 import org.keycloak.representations.idm.ClientRepresentation
 import org.koin.core.component.KoinComponent
-import java.util.UUID
 import kotlin.time.Duration.Companion.days
 import kotlin.time.toJavaDuration
 
@@ -39,6 +39,7 @@ class KeycloakClientDR(
         context: Context<FlaisAuthentication>,
     ): ClientRepresentation =
         clientRepresentation {
+            clientId = primary.keycloakClientId()
             name = KeycloakClientNameGenerator.generate(primary)
 
             webOrigins {
@@ -62,10 +63,7 @@ class KeycloakClientDR(
         desired: ClientRepresentation,
         primary: FlaisAuthentication,
         context: Context<FlaisAuthentication>,
-    ): ClientRepresentation {
-        desired.clientId = UUID.randomUUID().toString()
-        return keycloakClientService.createClient(primary.spec.realm, desired)
-    }
+    ): ClientRepresentation = keycloakClientService.createClient(primary.spec.realm, desired)
 
     override fun update(
         actual: ClientRepresentation,
@@ -90,15 +88,12 @@ class KeycloakClientDR(
         primary: FlaisAuthentication,
         context: Context<FlaisAuthentication>,
     ) {
-        primary.status?.clientID?.let {
-            keycloakClientService.deleteClient(primary.spec.realm, it)
-        }
+        keycloakClientService.deleteClient(primary.spec.realm, primary.keycloakClientId())
     }
 
     override fun fetchResources(primary: FlaisAuthentication): Set<ClientRepresentation> =
-        primary.status
-            ?.clientID
-            ?.let { keycloakClientService.findClient(primary.spec.realm, it) }
+        keycloakClientService
+            .findClient(primary.spec.realm, primary.keycloakClientId())
             ?.let { setOf(it) }
             ?: emptySet()
 }

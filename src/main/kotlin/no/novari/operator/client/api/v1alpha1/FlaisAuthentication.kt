@@ -40,4 +40,6 @@ fun FlaisAuthentication.resourceHash(): String {
     return createHash(values)
 }
 
+fun FlaisAuthentication.keycloakClientId(): String = metadata.uid ?: error("FlaisAuthentication '${metadata.name}' has no Kubernetes UID")
+
 fun FlaisAuthentication.generation(): Long = metadata.generation
