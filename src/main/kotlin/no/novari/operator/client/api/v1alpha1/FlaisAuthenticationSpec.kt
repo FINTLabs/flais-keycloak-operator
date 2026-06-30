@@ -5,7 +5,7 @@ import io.fabric8.generator.annotation.Size
 import io.fabric8.generator.annotation.ValidationRule
 
 data class FlaisAuthenticationSpec(
-    // TODO: Craete validation webhook for this to make it dynamically configurable
+    // TODO: Create validation webhook for this to make it dynamically configurable
     @ValidationRule(
         "self in ['fint']",
         message = "Invalid realm",
