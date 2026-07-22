@@ -1,0 +1,94 @@
+import com.marcnuri.helm.Helm
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputDirectory
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.TaskAction
+
+abstract class InstallOperatorTask : DefaultTask() {
+
+    @get:InputFile
+    abstract val kubeConfig: RegularFileProperty
+
+    @get:Input
+    abstract val namespace: Property<String>
+
+    @get:Input
+    abstract val image: Property<String>
+
+    @get:InputDirectory
+    abstract val crdChartDir: DirectoryProperty
+
+    @get:InputDirectory
+    abstract val operatorChartDir: DirectoryProperty
+
+    @get:Input
+    abstract val chartVersion: Property<String>
+
+    @TaskAction
+    fun install() {
+        val kubeConfigYaml = kubeConfig.get().asFile.readText()
+        val namespace = namespace.get()
+        val chartVersion = chartVersion.get()
+        val image = image.get()
+        val imageRepository = image.substringBeforeLast(":")
+        val imageTag = image.substringAfterLast(":")
+        val helmTimeoutSeconds = 60
+
+        val tempChartsDir = temporaryDir.resolve("charts")
+        tempChartsDir.deleteRecursively()
+
+        listOf(
+            crdChartDir.get().asFile to "flais-keycloak-operator-crd",
+            operatorChartDir.get().asFile to "flais-keycloak-operator",
+        ).forEach { (src, name) ->
+            val dest = tempChartsDir.resolve(name)
+            src.copyRecursively(dest)
+            val chartYaml = dest.resolve("Chart.yaml")
+            chartYaml.writeText(
+                chartYaml.readText()
+                    .replace(Regex("^version:.*", RegexOption.MULTILINE), "version: $chartVersion")
+                    .replace(Regex("^appVersion:.*", RegexOption.MULTILINE), "appVersion: \"$chartVersion\"")
+            )
+        }
+        
+        fun installChart(
+            releaseName: String,
+            chart: java.nio.file.Path,
+            values: Map<String, String> = emptyMap(),
+        ) {
+            Helm(chart)
+                .upgrade()
+                .install()
+                .withKubeConfig(kubeConfig.get().asFile.toPath())
+                .withKubeConfigContents(kubeConfigYaml)
+                .withName(releaseName)
+                .withNamespace(namespace)
+                .waitReady()
+                .withTimeout(helmTimeoutSeconds)
+
+                .apply { values.forEach { (k, v) -> set(k, v) } }
+                .call()
+        }
+
+        installChart(
+            releaseName = "flais-keycloak-operator-crd",
+            chart = tempChartsDir.resolve("flais-keycloak-operator-crd").toPath(),
+        )
+
+        installChart(
+            releaseName = "flais-keycloak-operator",
+            chart = tempChartsDir.resolve("flais-keycloak-operator").toPath(),
+            values = mapOf(
+                "image.repository" to imageRepository,
+                "image.tag" to imageTag,
+                "image.pullPolicy" to "Never",
+            ),
+        )
+
+        println("Operator installed")
+    }
+}

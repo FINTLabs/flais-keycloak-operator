@@ -1,0 +1,10 @@
+.gradle/
+build/
+.idea/
+*.iml
+out/
+.DS_Store
+*.class
+data
+.kotlin
+java_pid46300.hprof

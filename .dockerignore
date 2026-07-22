@@ -1,0 +1,4 @@
+.git
+.gradle
+data
+charts/**/charts/crds/templates/*.bak

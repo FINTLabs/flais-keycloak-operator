@@ -1,0 +1,45 @@
+services:
+  # ----------------------
+  # Keycloak and its Postgres database
+  # ----------------------
+  keycloak:
+    image: quay.io/keycloak/keycloak:${KEYCLOAK_VERSION}
+    command: >
+      start-dev --import-realm
+      --log-level="INFO,org.keycloak.authentication.authenticators:DEBUG"
+    environment:
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_DB: postgres
+      KC_DB_URL_HOST: keycloak-pg
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: password
+      KC_DB_SCHEMA: public
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    depends_on:
+      keycloak-pg:
+        condition: service_healthy
+    networks:
+      - flais-keycloak-operator
+
+  keycloak-pg:
+    image: postgres:17.5
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: password
+    healthcheck:
+      test: [ "CMD-SHELL", "sh -c 'pg_isready -U keycloak -d keycloak'" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - flais-keycloak-operator
+
+networks:
+  flais-keycloak-operator:
+    driver: bridge
+    name: flais-keycloak-operator

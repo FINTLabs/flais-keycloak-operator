@@ -1,0 +1,73 @@
+services:
+  keycloak:
+    volumes:
+      - ./config/kc:/opt/keycloak/data/import:ro
+    ports:
+      - "8080:8080"
+      - "9000:9000"
+    depends_on:
+      keycloak-pg:
+        condition: service_healthy
+      server:
+        condition: service_healthy
+      agent:
+        condition: service_healthy
+  keycloak-pg:
+    volumes:
+      - ./data/pg:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # ----------------------
+  # k3s
+  # ----------------------
+  server:
+    image: rancher/k3s:v1.35.3-k3s1
+    command: >
+      server
+    privileged: true
+    hostname: server-1
+    ports:
+      - "6443:6443"
+    volumes:
+      - ./data/k3s-server:/var/lib/rancher/k3s
+      - ./data/kubeconfig:/output
+    environment:
+      - K3S_TOKEN=mysecrettoken
+      - K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml
+      - K3S_KUBECONFIG_MODE=666
+    tmpfs:
+      - /run
+      - /var/run
+    healthcheck:
+      test: [ "CMD", "kubectl", "get", "nodes" ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - flais-keycloak-operator
+
+  agent:
+    image: rancher/k3s:v1.35.3-k3s1
+    command: >
+      agent --with-node-id
+    privileged: true
+    hostname: agent-1
+    volumes:
+      - ./data/k3s-agent:/var/lib/rancher/k3s
+    environment:
+      - K3S_URL=https://server:6443
+      - K3S_TOKEN=mysecrettoken
+    tmpfs:
+      - /run
+      - /var/run
+    healthcheck:
+      test: [ "CMD-SHELL", "test -S /run/k3s/containerd/containerd.sock" ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      server:
+        condition: service_healthy
+    networks:
+      - flais-keycloak-operator
