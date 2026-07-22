@@ -10,7 +10,7 @@ fabric8 = "7.6.1"
 operator-sdk = "5.3.3"
 
 hoplite = "2.9.0"
-http4k = "6.45.1.0"
+http4k = "6.56.0.0"
 jackson = "2.21.3"
 koin = "4.2.1"
 micrometer = "1.15.5"
