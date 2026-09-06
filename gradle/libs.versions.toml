@@ -5,7 +5,7 @@ gradle-versions = "0.54.0"
 docker-compose = "0.17.21"
 
 keycloak = "26.6.0"
-kc-admin = "26.0.9"
+kc-admin = "26.0.12"
 fabric8 = "7.8.0"
 operator-sdk = "5.3.3"
 
