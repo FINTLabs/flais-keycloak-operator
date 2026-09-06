@@ -7,7 +7,7 @@ docker-compose = "0.17.21"
 keycloak = "26.6.0"
 kc-admin = "26.0.9"
 fabric8 = "7.8.0"
-operator-sdk = "5.3.3"
+operator-sdk = "5.5.1"
 
 hoplite = "2.9.0"
 http4k = "6.56.0.0"
