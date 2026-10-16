@@ -60,7 +60,7 @@ jobs:
                 run: ./gradlew integrationTest --stacktrace --configuration-cache
 
             -   name: Integration Test Reports
-                uses: dorny/test-reporter@v3.0.0
+                uses: dorny/test-reporter@v3.2.0
                 if: always()
                 with:
                     name: Integration Test Reports
